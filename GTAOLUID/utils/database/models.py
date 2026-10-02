@@ -163,6 +163,23 @@ class GTAUser(BaseIDModel, table=True):
 
     @classmethod
     @with_session
+    async def get_accounts_by_game_id(
+        cls: Type[T_GTAUser],
+        session: AsyncSession,
+        game_id: str,
+    ) -> List[T_GTAUser]:
+        """按游戏昵称全局查找绑定记录，不区分用户，按绑定先后排序。"""
+        stmt = (
+            select(cls)
+            .where(func.lower(cls.game_id) == game_id.strip().lower())
+            .order_by(cls.id.asc())  # type: ignore
+        )
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+        return list(rows) if rows else []
+
+    @classmethod
+    @with_session
     async def update_account_profile(
         cls: Type[T_GTAUser],
         session: AsyncSession,
