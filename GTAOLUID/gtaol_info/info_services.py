@@ -10,6 +10,7 @@ from ..utils.downloader import download
 from ..utils.database.models import GTAUser
 from ..utils.render.HTML.render import render_detail_card, render_summary_card
 from ..utils.helpers.player_data import get_latest_player_snapshot
+from ..utils.utils.user_avatar import get_core_user_avatar
 
 # 接口自带的元数据/审核字段，详情不展示
 _META_KEYS = {
@@ -126,7 +127,53 @@ def _build_detail_tree(body: Dict[str, Any]) -> List[Dict[str, Any]]:
     return tree
 
 
-async def _assemble_identity(game_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+_DEFAULT_AVATAR_PATH = (
+    Path(__file__).resolve().parents[1] / "utils" / "render" / "HTML" / "texture2d" / "default_avatar.png"
+)
+
+_IMAGE_MAGIC = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF8", "image/gif"),
+)
+
+
+def _guess_mime(data: bytes) -> str:
+    """按文件头判定图片类型；无法识别时回退 image/jpeg。"""
+    for magic, mime in _IMAGE_MAGIC:
+        if data.startswith(magic):
+            return mime
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
+def _to_data_uri(data: bytes) -> str:
+    """把图片字节转成 data URI；空数据返回空串。"""
+    if not data:
+        return ""
+    return f"data:{_guess_mime(data)};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+async def _load_avatar_src(user_avatar_url: Optional[str]) -> str:
+    """取用户头像，失败回退本地默认头像；两处都没有时返回空串。"""
+    url = (user_avatar_url or "").strip()
+    if url:
+        downloaded = await download(url)
+        if downloaded and downloaded.is_file() and downloaded.stat().st_size > 0:
+            return _to_data_uri(downloaded.read_bytes())
+
+    if _DEFAULT_AVATAR_PATH.is_file() and _DEFAULT_AVATAR_PATH.stat().st_size > 0:
+        return _to_data_uri(_DEFAULT_AVATAR_PATH.read_bytes())
+
+    return ""
+
+
+async def _assemble_identity(
+    game_id: str,
+    body: Dict[str, Any],
+    user_avatar_url: Optional[str],
+) -> Dict[str, Any]:
     """组装总览与详情共用的玩家身份头部，缺失字段严格回退为 0 或 None。"""
     nickname = body.get("昵称") or game_id
     crew_tag = body.get("帮会缩写") or ""
@@ -141,14 +188,7 @@ async def _assemble_identity(game_id: str, body: Dict[str, Any]) -> Dict[str, An
     cash_num = int(raw_cash) if isinstance(raw_cash, (int, float)) else int(_parse_money(raw_cash))
     bank_num = int(raw_bank) if isinstance(raw_bank, (int, float)) else int(_parse_money(raw_bank))
 
-    avatar_src = ""
-    avatar_url = body.get("头像")
-    if avatar_url and isinstance(avatar_url, str) and avatar_url.strip():
-        downloaded = await download(avatar_url.strip())
-        if downloaded and downloaded.is_file() and downloaded.stat().st_size > 0:
-            mime = "image/png" if downloaded.suffix.lower() == ".png" else "image/jpeg"
-            b64_data = base64.b64encode(downloaded.read_bytes()).decode("ascii")
-            avatar_src = f"data:{mime};base64,{b64_data}"
+    avatar_src = await _load_avatar_src(user_avatar_url)
 
     return {
         "nickname": nickname,
@@ -166,13 +206,17 @@ async def _assemble_identity(game_id: str, body: Dict[str, Any]) -> Dict[str, An
     }
 
 
-async def _assemble_overview_data(game_id: str, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+async def _assemble_overview_data(
+    game_id: str,
+    raw_data: Dict[str, Any],
+    user_avatar_url: Optional[str],
+) -> Dict[str, Any]:
     """清洗快照原始数据并组装为供渲染层消费的纯结构化字典。
 
     所有缺失或异常字段严格回退为 0 或 None，严禁填入任何测试假数据。
     """
     d: Dict[str, Any] = raw_data.get("body", raw_data)
-    identity = await _assemble_identity(game_id, d)
+    identity = await _assemble_identity(game_id, d, user_avatar_url)
 
     # 1. 资金收入与支出明细
     in_jobs = _parse_money(d.get("差事收入", 0))
@@ -448,7 +492,8 @@ async def render_overview_service(
     logger.info(f"[GTAOnline · 数据总览] 开始为 {game_id} 组装数据，数据源: {snapshot_file.name}")
 
     try:
-        overview_data = await _assemble_overview_data(game_id, raw_data)
+        user_avatar_url = await get_core_user_avatar(user_id)
+        overview_data = await _assemble_overview_data(game_id, raw_data, user_avatar_url)
         img_bytes = await render_summary_card(overview_data)
         return img_bytes, "OK"
     except Exception as e:
@@ -480,7 +525,8 @@ async def render_detail_service(
         tree = _build_detail_tree(body)
         if not tree:
             return None, f"未找到 [{game_id}] 可展示的玩家详情数据。"
-        header = await _assemble_identity(game_id, body)
+        user_avatar_url = await get_core_user_avatar(user_id)
+        header = await _assemble_identity(game_id, body, user_avatar_url)
         img_bytes = await render_detail_card(header, tree)
         return img_bytes, "OK"
     except Exception as e:
