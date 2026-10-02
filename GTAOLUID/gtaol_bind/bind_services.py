@@ -82,7 +82,8 @@ async def bind_account_service(
         f"绑定GTAOL账户 [{game_id}] 成功！\n"
         f"当前绑定的平台为：[{plat_name}]\n"
         f"如果需要绑定其他平台，请附带对应平台代码\n"
-        f"{guide}"
+        f"{guide}\n"
+        f"如：gta绑定 sssysy 1"
     )
     return msg
 
@@ -111,7 +112,7 @@ async def unbind_account_service(
     )
 
     if new_main_name:
-        return f"已成功解绑主账户 [{deleted_name}]！已顺位将账户 [{new_main_name}] 设为主账户。"
+        return f"已成功解绑主账户 [{deleted_name}]！\n已顺位将账户 [{new_main_name}] 设为主账户。"
 
     if not remaining_accounts:
         return f"已成功解绑账户 [{deleted_name}]！您当前暂无绑定的GTAOL账户。"
