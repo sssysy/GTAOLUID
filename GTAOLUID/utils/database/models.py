@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from gsuid_core.logger import logger
+from gsuid_core.utils.database.startup import exec_list
 from gsuid_core.utils.database.base_models import BaseIDModel, with_session
 
 T_GTAUser = TypeVar("T_GTAUser", bound="GTAUser")
@@ -15,9 +16,11 @@ class GTAUser(BaseIDModel, table=True):
 
     user_id: str = Field(default="", index=True, title="用户ID")
     bot_id: str = Field(default="onebot", title="Bot平台")
-    game_id: str = Field(default="", index=True, title="Rockstar游戏ID")
+    game_id: str = Field(default="", index=True, title="Rockstar游戏昵称")
     platform: str = Field(default="0", title="平台代码")
     is_main: bool = Field(default=False, title="是否主账号")
+    rockstar_id: str = Field(default="", title="Rockstar数字ID")
+    avatar_url: str = Field(default="", title="Rockstar头像URL")
 
     @classmethod
     @with_session
@@ -157,3 +160,40 @@ class GTAUser(BaseIDModel, table=True):
         result = await session.execute(stmt)
         rows = result.scalars().all()
         return list(rows) if rows else []
+
+    @classmethod
+    @with_session
+    async def update_account_profile(
+        cls: Type[T_GTAUser],
+        session: AsyncSession,
+        user_id: str,
+        bot_id: str,
+        game_id: str,
+        rockstar_id: str,
+        avatar_url: str,
+    ) -> Optional[T_GTAUser]:
+        """把 Rockstar 资料写入对应绑定记录；绑定不存在时返回 None。"""
+        stmt = select(cls).where(
+            cls.user_id == user_id,
+            cls.bot_id == bot_id,
+            func.lower(cls.game_id) == game_id.lower(),
+        )
+        result = await session.execute(stmt)
+        existing = result.scalars().first()
+        if existing is None:
+            logger.warning(f"[GTAOnline · 账户绑定] 未找到绑定记录 {user_id} -> {game_id}，资料未写入")
+            return None
+
+        existing.rockstar_id = rockstar_id
+        existing.avatar_url = avatar_url
+        session.add(existing)
+        return existing
+
+
+# 老库补列：核心在 WS 启动前统一执行 exec_list 中的语句
+exec_list.extend(
+    [
+        "ALTER TABLE gtauser ADD COLUMN rockstar_id TEXT DEFAULT '';",
+        "ALTER TABLE gtauser ADD COLUMN avatar_url TEXT DEFAULT '';",
+    ]
+)

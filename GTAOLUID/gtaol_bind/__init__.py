@@ -4,8 +4,9 @@ from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.segment import MessageSegment
 
-from .bind_services import bind_account_service, unbind_account_service
+from .bind_services import bind_account_service, unbind_account_service, render_bind_list_service
 from ..utils.helpers.api import GTAOLApiError
 
 sv_gtaol_bind = SV("GTAOL账户绑定")
@@ -52,3 +53,16 @@ async def gtaol_unbind_account(bot: Bot, ev: Event) -> None:
     except Exception as e:
         logger.exception(f"[GTAOnline · 账户绑定] 用户 {ev.user_id} 解绑异常: {e}")
         await bot.send("解绑过程出现异常，请稍后重试。")
+
+
+@sv_gtaol_bind.on_fullmatch("查看", block=True)
+async def gtaol_view_accounts(bot: Bot, ev: Event) -> None:
+    try:
+        img_bytes, msg = await render_bind_list_service(bot_id=ev.bot_id, user_id=ev.user_id)
+        if img_bytes is not None:
+            await bot.send(MessageSegment.image(img_bytes))
+        else:
+            await bot.send(msg)
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 账户绑定] 用户 {ev.user_id} 生成绑定列表异常: {e}")
+        await bot.send("生成绑定账号列表失败，请稍后重试。")

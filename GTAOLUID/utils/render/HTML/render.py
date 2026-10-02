@@ -7,7 +7,7 @@ import jinja2
 
 from gsuid_core.logger import logger
 
-from ...helpers.static_assets import get_bg_url, get_font_url
+from ...helpers.static_assets import get_bg_url, get_font_url, get_icon_url
 
 CURRENT_HTML_DIR = Path(__file__).parent
 STYLE_DIR = CURRENT_HTML_DIR / "style"
@@ -398,4 +398,33 @@ async def render_detail_card(header: Dict[str, Any], tree: List[Dict[str, Any]])
         selector="#capture-card",
         viewport_width=card_width + 40,
         viewport_height=1600,
+    )
+
+
+async def render_bind_list_card(data: Dict[str, Any]) -> bytes:
+    """用户绑定账号列表卡片渲染入口。
+
+    Args:
+        data: 业务层组装的用户身份与账号列表数据。
+
+    Returns:
+        渲染产出的 JPEG 字节。
+    """
+    css_content = _read_style("header.css", "bind_list.css")
+    context = {
+        **data,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
+        "icon_uri": get_icon_url(),
+        "css_content": css_content,
+    }
+
+    template = _ENV.get_template("bind_list.html")
+    html_content = template.render(**context)
+
+    return await render_html(
+        html_content=html_content,
+        selector="#capture-card",
+        viewport_width=440,
+        viewport_height=900,
     )

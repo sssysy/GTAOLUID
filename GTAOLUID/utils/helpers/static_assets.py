@@ -1,18 +1,16 @@
-"""插件本地静态资源的 HTTP 挂载与直链生成。
-
-set_content 渲染的文档源是 about:blank，Chromium 会拦截 file:// 子资源，
-因此字体与背景统一经 gsuid_core 本地服务以 http 提供。
-"""
+"""插件本地静态资源的 HTTP 挂载与直链生成。"""
 
 from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
-from gsuid_core.app_life import app as fastapi_app
+
 from gsuid_core.config import CONFIG_DEFAULT, core_config
+from gsuid_core.app_life import app as fastapi_app
 
 _UTILS_DIR = Path(__file__).resolve().parents[1]
 _FONT_PATH = _UTILS_DIR / "fonts" / "youyuan.ttf"
 _BG_PATH = _UTILS_DIR / "render" / "HTML" / "texture2d" / "infobg.jpg"
+_ICON_PATH = _UTILS_DIR / "render" / "HTML" / "texture2d" / "gtaol.png"
 
 _FONT_ROUTE = "/gtaoluid/fonts"
 _BG_ROUTE = "/gtaoluid/texture2d"
@@ -68,3 +66,11 @@ def get_bg_url() -> str:
         return ""
     _ensure_mounted()
     return f"{_base_url()}{_BG_ROUTE}/{_BG_PATH.name}"
+
+
+def get_icon_url() -> str:
+    """本地插件标识图直链；图片缺失时回退空串。"""
+    if not _ICON_PATH.is_file():
+        return ""
+    _ensure_mounted()
+    return f"{_base_url()}{_BG_ROUTE}/{_ICON_PATH.name}"

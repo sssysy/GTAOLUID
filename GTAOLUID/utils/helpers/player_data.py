@@ -74,3 +74,18 @@ def get_latest_player_snapshot(
         logger.warning(f"[GTAOnline · 数据存储] 读取本地快照 {latest_file.name} 失败: {e}")
         return None
     return latest_file, data
+
+
+def extract_account_profile(snapshot: Dict[str, Any]) -> Dict[str, str]:
+    """从快照中提取绑定账户资料（数字ID、头像URL）；缺失字段统一回退为空串。"""
+    body = snapshot.get("body", snapshot)
+
+    def _text(value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    return {
+        "rockstar_id": _text(body.get("rockstar_id")),
+        "avatar_url": _text(body.get("头像")),
+    }

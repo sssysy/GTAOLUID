@@ -8,7 +8,7 @@ from ..utils.helpers.api import (
 )
 from ..utils.database.models import GTAUser
 from ..utils.helpers.platform import get_platform_api
-from ..utils.helpers.player_data import save_player_snapshot
+from ..utils.helpers.player_data import save_player_snapshot, extract_account_profile
 
 
 async def refresh_player_data_service(bot_id: str, user_id: str) -> str:
@@ -29,6 +29,13 @@ async def refresh_player_data_service(bot_id: str, user_id: str) -> str:
 
         data = await get_snapshot(index)
         save_player_snapshot(game_id, index, data)
+        profile = extract_account_profile(data)
+        await GTAUser.update_account_profile(
+            user_id=user_id,
+            bot_id=bot_id,
+            game_id=game_id,
+            **profile,
+        )
         logger.info(f"[GTAOnline · 数据刷新] {game_id} 刷新成功并落盘，快照索引: {index}")
         return f"[{game_id}] 的数据刷新成功！快照索引：[{index}]"
     except GTAOLApiError as e:
