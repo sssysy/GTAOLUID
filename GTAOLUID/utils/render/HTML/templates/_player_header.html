@@ -1,0 +1,39 @@
+  <!-- 1. 玩家信息模块 -->
+  <div class="mod-header">
+    <div class="user-left">
+      <img class="avatar" src="{{ avatar_src }}" alt="Avatar">
+      <div class="user-details">
+        <div class="name-row">
+          <span class="user-name">{{ nickname }}</span>
+          {% if crew_tag %}<span class="crew-badge">{{ crew_tag }}</span>{% endif %}
+          <div class="rank-globe-box">
+            <div class="rank-globe">
+              <svg viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="14" fill="rgba(14, 116, 227, 0.35)" stroke="#38bdf8" stroke-width="1.5"/>
+                <ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="rgba(56, 189, 248, 0.45)" stroke-width="1"/>
+                <ellipse cx="16" cy="16" rx="6" ry="14" fill="none" stroke="rgba(56, 189, 248, 0.45)" stroke-width="1"/>
+                <line x1="2" y1="16" x2="30" y2="16" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1"/>
+                <line x1="16" y1="2" x2="16" y2="30" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1"/>
+              </svg>
+              <span class="rank-num">{{ rank }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="user-sub">
+          <span>{{ platform_name }}</span>
+          <span>RID: {{ rid }}</span>
+          <span>在线时长：{{ time_played }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-balances">
+      <div class="bal-col">
+        <span class="bal-lbl">现金</span>
+        <span class="bal-val bal-cash">${{ cash_str }}</span>
+      </div>
+      <div class="bal-col">
+        <span class="bal-lbl">银行</span>
+        <span class="bal-val bal-bank">${{ bank_str }}</span>
+      </div>
+    </div>
+  </div>

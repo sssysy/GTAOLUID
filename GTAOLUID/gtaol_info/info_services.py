@@ -26,8 +26,22 @@ _META_KEYS = {
     "审查值",
 }
 
-# 详情整体排除集合：元数据 + 奖章（奖章另行渲染）
-_DETAIL_EXCLUDED_KEYS = _META_KEYS | {"奖章"}
+# 详情数据列排除集合：元数据与奖章/成就/升级进度均另有安排
+_DETAIL_EXCLUDED_KEYS = _META_KEYS | {"奖章", "成就", "升级进度"}
+
+# 顶部身份信息占用的字段，从数据列中摘除避免重复
+_HEADER_KEYS = {
+    "昵称",
+    "rockstar_id",
+    "头像",
+    "平台名称",
+    "等级",
+    "现金",
+    "银行",
+    "帮会缩写",
+    "帮会颜色",
+    "GTA 在线模式中花费的时间",
+}
 
 
 def _parse_money(val: Any) -> float:
@@ -82,31 +96,74 @@ def _parse_int(val: Any) -> int:
     return 0
 
 
-def _flatten_body(body: Dict[str, Any]) -> List[Dict[str, str]]:
-    """递归展平快照 body，保留接口原始顺序并隐藏空值。
+def _build_detail_node(label: str, value: Any) -> Optional[Dict[str, Any]]:
+    """构造单个详情节点；空值返回 None，嵌套结构落在 children 上。"""
+    if _is_empty_value(value):
+        return None
+    if isinstance(value, (dict, list)):
+        children: List[Dict[str, Any]] = []
+        source = value.items() if isinstance(value, dict) else enumerate(value, start=1)
+        for key, sub in source:
+            sub_label = str(key) if isinstance(value, dict) else f"#{key}"
+            child = _build_detail_node(sub_label, sub)
+            if child is not None:
+                children.append(child)
+        if not children:
+            return None
+        return {"label": label, "children": children}
+    return {"label": label, "value": str(value)}
 
-    标签以 "父 · 子" 拼接，列表项追加 "#序号"。
-    """
-    items: List[Dict[str, str]] = []
 
-    def walk(prefix: str, value: Any) -> None:
-        if _is_empty_value(value):
-            return
-        if isinstance(value, dict):
-            for key, sub in value.items():
-                if key in _DETAIL_EXCLUDED_KEYS:
-                    continue
-                label = f"{prefix} · {key}" if prefix else str(key)
-                walk(label, sub)
-            return
-        if isinstance(value, list):
-            for idx, sub in enumerate(value, start=1):
-                walk(f"{prefix} #{idx}", sub)
-            return
-        items.append({"label": prefix, "value": str(value)})
+def _build_detail_tree(body: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """把快照 body 转成详情树，保留接口原始顺序并隐藏空值。"""
+    tree: List[Dict[str, Any]] = []
+    for key, value in body.items():
+        if key in _DETAIL_EXCLUDED_KEYS or key in _HEADER_KEYS:
+            continue
+        node = _build_detail_node(str(key), value)
+        if node is not None:
+            tree.append(node)
+    return tree
 
-    walk("", body)
-    return items
+
+async def _assemble_identity(game_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    """组装总览与详情共用的玩家身份头部，缺失字段严格回退为 0 或 None。"""
+    nickname = body.get("昵称") or game_id
+    crew_tag = body.get("帮会缩写") or ""
+    crew_color = body.get("帮会颜色") or ""
+    rank = body.get("等级") or 0
+    platform_name = body.get("平台名称") or "None"
+    rid = body.get("rockstar_id") or "None"
+    time_played = body.get("GTA 在线模式中花费的时间") or "0"
+
+    raw_cash = body.get("现金", 0)
+    raw_bank = body.get("银行", 0)
+    cash_num = int(raw_cash) if isinstance(raw_cash, (int, float)) else int(_parse_money(raw_cash))
+    bank_num = int(raw_bank) if isinstance(raw_bank, (int, float)) else int(_parse_money(raw_bank))
+
+    avatar_src = ""
+    avatar_url = body.get("头像")
+    if avatar_url and isinstance(avatar_url, str) and avatar_url.strip():
+        downloaded = await download(avatar_url.strip())
+        if downloaded and downloaded.is_file() and downloaded.stat().st_size > 0:
+            mime = "image/png" if downloaded.suffix.lower() == ".png" else "image/jpeg"
+            b64_data = base64.b64encode(downloaded.read_bytes()).decode("ascii")
+            avatar_src = f"data:{mime};base64,{b64_data}"
+
+    return {
+        "nickname": nickname,
+        "crew_tag": crew_tag,
+        "crew_color": crew_color,
+        "rank": rank,
+        "platform_name": platform_name,
+        "rid": rid,
+        "time_played": time_played,
+        "cash_str": f"{cash_num:,}",
+        "bank_str": f"{bank_num:,}",
+        "cash_num": cash_num,
+        "bank_num": bank_num,
+        "avatar_src": avatar_src,
+    }
 
 
 async def _assemble_overview_data(game_id: str, raw_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -115,32 +172,9 @@ async def _assemble_overview_data(game_id: str, raw_data: Dict[str, Any]) -> Dic
     所有缺失或异常字段严格回退为 0 或 None，严禁填入任何测试假数据。
     """
     d: Dict[str, Any] = raw_data.get("body", raw_data)
+    identity = await _assemble_identity(game_id, d)
 
-    # 1. 基础信息
-    nickname = d.get("昵称") or game_id
-    crew_tag = d.get("帮会缩写") or ""
-    crew_color = d.get("帮会颜色") or ""
-    rank = d.get("等级") or 0
-    platform_name = d.get("平台名称") or "None"
-    rid = d.get("rockstar_id") or "None"
-    time_played = d.get("GTA 在线模式中花费的时间") or "0"
-
-    raw_cash = d.get("现金", 0)
-    raw_bank = d.get("银行", 0)
-    cash_num = int(raw_cash) if isinstance(raw_cash, (int, float)) else int(_parse_money(raw_cash))
-    bank_num = int(raw_bank) if isinstance(raw_bank, (int, float)) else int(_parse_money(raw_bank))
-
-    # 头像下载与 Base64 转换
-    avatar_src = ""
-    avatar_url = d.get("头像")
-    if avatar_url and isinstance(avatar_url, str) and avatar_url.strip():
-        downloaded = await download(avatar_url.strip())
-        if downloaded and downloaded.is_file() and downloaded.stat().st_size > 0:
-            mime = "image/png" if downloaded.suffix.lower() == ".png" else "image/jpeg"
-            b64_data = base64.b64encode(downloaded.read_bytes()).decode("ascii")
-            avatar_src = f"data:{mime};base64,{b64_data}"
-
-    # 2. 资金收入与支出明细
+    # 1. 资金收入与支出明细
     in_jobs = _parse_money(d.get("差事收入", 0))
     in_reward = _parse_money(d.get("表现良好奖励收入", 0))
     in_bet = _parse_money(d.get("赌博收入", 0))
@@ -184,7 +218,7 @@ async def _assemble_overview_data(game_id: str, raw_data: Dict[str, Any]) -> Dic
     if ex_med > 0:
         expense_items.append({"name": "医疗联络", "value": ex_med, "color": "#1abc9c"})
 
-    cur_balance = float(cash_num + bank_num)
+    cur_balance = float(identity["cash_num"] + identity["bank_num"])
     if cur_balance > 0:
         expense_items.append({"name": "当前结余", "value": cur_balance, "color": "#2ecc71"})
 
@@ -363,16 +397,7 @@ async def _assemble_overview_data(game_id: str, raw_data: Dict[str, Any]) -> Dic
     }
 
     return {
-        "nickname": nickname,
-        "crew_tag": crew_tag,
-        "crew_color": crew_color,
-        "rank": rank,
-        "platform_name": platform_name,
-        "rid": rid,
-        "time_played": time_played,
-        "cash_str": f"{cash_num:,}",
-        "bank_str": f"{bank_num:,}",
-        "avatar_src": avatar_src,
+        **identity,
         "income_items": income_items,
         "income_total": in_total,
         "expense_items": expense_items,
@@ -450,10 +475,13 @@ async def render_detail_service(
 
     try:
         body = raw_data.get("body", raw_data)
-        items = _flatten_body(body) if isinstance(body, dict) else []
-        if not items:
+        if not isinstance(body, dict):
             return None, f"未找到 [{game_id}] 可展示的玩家详情数据。"
-        img_bytes = await render_detail_card(items)
+        tree = _build_detail_tree(body)
+        if not tree:
+            return None, f"未找到 [{game_id}] 可展示的玩家详情数据。"
+        header = await _assemble_identity(game_id, body)
+        img_bytes = await render_detail_card(header, tree)
         return img_bytes, "OK"
     except Exception as e:
         logger.exception(f"[GTAOnline · 玩家详情] 渲染详情卡片异常: {e}")

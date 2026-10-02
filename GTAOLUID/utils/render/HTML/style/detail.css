@@ -14,9 +14,8 @@ body {
   margin: 0;
 }
 
-/* 外层画布：直角无圆角（防JPEG黑边），背景等比放大上下铺满居中 */
+/* 外层画布：宽度按列数动态设置，直角无圆角（防JPEG黑边） */
 .card {
-  width: 1000px;
   position: relative;
   border-radius: 0;
   overflow: hidden;
@@ -25,38 +24,55 @@ body {
   background-repeat: no-repeat;
 }
 
-/* 顶栏：标题 + 字段总数 */
-.detail-header {
-  padding: 14px 22px;
-  background: rgba(14, 14, 14, 0.72);
+/* 居中大标题 */
+.detail-title-line {
+  padding: 14px 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+/* 横向列布局：一列一张卡片，列内可嵌套卡中卡 */
+.detail-columns {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 20px 4px;
 }
 
-.detail-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 1px;
+.detail-col {
+  flex: 0 0 320px;
+  width: 320px;
+  background: rgba(14, 14, 14, 0.62);
+  border-radius: 6px;
+  padding: 10px 12px;
 }
 
-.detail-count {
+.nested-card {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.045);
+  border-left: 2px solid rgba(56, 189, 248, 0.35);
+  border-radius: 4px;
+}
+
+.nested-title {
+  margin-bottom: 5px;
+  padding-bottom: 4px;
   font-size: 12px;
-  color: #94a3b8;
-}
-
-/* 多列网格：按纵向顺序流式铺满，自动均衡列高 */
-.kv-columns {
-  padding: 16px 22px;
-  column-count: 3;
-  column-gap: 24px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  word-break: break-all;
 }
 
 .kv-item {
-  break-inside: avoid;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .kv-lbl {
@@ -72,7 +88,7 @@ body {
   color: #f5f5f7;
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
-  word-break: break-all;
+  word-break: break-word;
 }
 
 /* 底部 footer：直接以画布为背景，无黑底无描边 */

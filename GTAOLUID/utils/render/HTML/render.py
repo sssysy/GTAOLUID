@@ -7,14 +7,29 @@ import jinja2
 
 from gsuid_core.logger import logger
 
+from ...helpers.static_assets import get_bg_url, get_font_url
+
 CURRENT_HTML_DIR = Path(__file__).parent
-FONTS_DIR = CURRENT_HTML_DIR.parent.parent / "fonts"
-FONT_PATH = FONTS_DIR / "youyuan.ttf"
-BG_IMAGE_PATH = CURRENT_HTML_DIR / "texture2d" / "infobg.jpg"
-CSS_PATH = CURRENT_HTML_DIR / "style" / "summary.css"
-TEMPLATE_PATH = CURRENT_HTML_DIR / "templates" / "summary.html"
-DETAIL_CSS_PATH = CURRENT_HTML_DIR / "style" / "detail.css"
-DETAIL_TEMPLATE_PATH = CURRENT_HTML_DIR / "templates" / "detail.html"
+STYLE_DIR = CURRENT_HTML_DIR / "style"
+TEMPLATE_DIR = CURRENT_HTML_DIR / "templates"
+
+_ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(str(TEMPLATE_DIR)), autoescape=False)
+
+# 详情列布局参数：列宽、列间距、外边距与每列叶子上限
+_DETAIL_COL_WIDTH = 320
+_DETAIL_COL_GAP = 12
+_DETAIL_SIDE_PADDING = 20
+_DETAIL_ROWS_PER_COL = 50
+
+
+def _read_style(*names: str) -> str:
+    """按顺序拼接样式文件内容，缺失的文件跳过。"""
+    parts = []
+    for name in names:
+        path = STYLE_DIR / name
+        if path.exists():
+            parts.append(path.read_text(encoding="utf-8"))
+    return "\n".join(parts)
 
 
 def _format_money(val: float) -> str:
@@ -270,20 +285,19 @@ async def render_summary_card(data: Dict[str, Any]) -> bytes:
     ex_svg = _render_donut_svg_staggered(ex_slices, "资金去向", f"${_format_money(expense_total)}")
 
     # 2. 读取样式与模板
-    css_content = CSS_PATH.read_text(encoding="utf-8") if CSS_PATH.exists() else ""
-    template_str = TEMPLATE_PATH.read_text(encoding="utf-8")
+    css_content = _read_style("header.css", "summary.css")
 
     # 3. 组装模板渲染上下文
     context = {
         **data,
-        "font_uri": FONT_PATH.as_uri() if FONT_PATH.exists() else "",
-        "bg_uri": BG_IMAGE_PATH.as_uri() if BG_IMAGE_PATH.exists() else "",
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
         "css_content": css_content,
         "in_svg": in_svg,
         "ex_svg": ex_svg,
     }
 
-    template = jinja2.Template(template_str)
+    template = _ENV.get_template("summary.html")
     html_content = template.render(**context)
 
     # 4. 产出图片
@@ -295,31 +309,93 @@ async def render_summary_card(data: Dict[str, Any]) -> bytes:
     )
 
 
-async def render_detail_card(items: List[Dict[str, str]]) -> bytes:
-    """玩家详情卡片渲染入口，将标签值列表铺成多列网格。
+def _build_detail_columns(
+    tree: List[Dict[str, Any]],
+    max_rows: int = _DETAIL_ROWS_PER_COL,
+) -> List[List[Dict[str, Any]]]:
+    """把详情树按每列至多 max_rows 个叶子拆成横向列。
+
+    跨列的嵌套组在新列顶部重开，标题追加 "（续）"。
+    """
+    columns: List[List[Dict[str, Any]]] = []
+    continued: set = set()
+    state: Dict[str, Any] = {"count": 0, "blocks": [], "stack": []}
+
+    def append_block(block: Dict[str, Any]) -> None:
+        if state["stack"]:
+            state["stack"][-1]["children"].append(block)
+        else:
+            state["blocks"].append(block)
+
+    def group_block(node: Dict[str, Any]) -> Dict[str, Any]:
+        label = node["label"]
+        if id(node) in continued:
+            label = f"{label}（续）"
+        return {"group": True, "label": label, "children": []}
+
+    def new_column(path: List[Dict[str, Any]]) -> None:
+        columns.append(state["blocks"])
+        state["blocks"] = []
+        state["count"] = 0
+        state["stack"] = []
+        for node in path:
+            continued.add(id(node))
+            block = group_block(node)
+            append_block(block)
+            state["stack"].append(block)
+
+    def walk(nodes: List[Dict[str, Any]], path: List[Dict[str, Any]]) -> None:
+        for node in nodes:
+            if "children" in node:
+                block = group_block(node)
+                append_block(block)
+                state["stack"].append(block)
+                walk(node["children"], path + [node])
+                state["stack"].pop()
+                continue
+            if state["count"] >= max_rows:
+                new_column(path)
+            append_block({"group": False, "label": node["label"], "value": node["value"]})
+            state["count"] += 1
+
+    walk(tree, [])
+    columns.append(state["blocks"])
+    return [blocks for blocks in columns if blocks]
+
+
+async def render_detail_card(header: Dict[str, Any], tree: List[Dict[str, Any]]) -> bytes:
+    """玩家详情卡片渲染入口，身份头部复用总览，统计数据横向分列铺开。
 
     Args:
-        items: 业务层展平好的 {"label", "value"} 列表。
+        header: 业务层组装的玩家身份头部数据。
+        tree: 业务层组装的详情树。
 
     Returns:
         渲染产出的 JPEG 字节。
     """
-    css_content = DETAIL_CSS_PATH.read_text(encoding="utf-8") if DETAIL_CSS_PATH.exists() else ""
-    template_str = DETAIL_TEMPLATE_PATH.read_text(encoding="utf-8")
+    css_content = _read_style("header.css", "detail.css")
+    columns = _build_detail_columns(tree)
+    card_width = (
+        _DETAIL_COL_WIDTH * len(columns)
+        + _DETAIL_COL_GAP * max(len(columns) - 1, 0)
+        + _DETAIL_SIDE_PADDING * 2
+    )
 
     context = {
-        "font_uri": FONT_PATH.as_uri() if FONT_PATH.exists() else "",
-        "bg_uri": BG_IMAGE_PATH.as_uri() if BG_IMAGE_PATH.exists() else "",
+        **header,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
         "css_content": css_content,
-        "items": items,
+        "columns": columns,
+        "card_width": card_width,
     }
 
-    template = jinja2.Template(template_str)
+    template = _ENV.get_template("detail.html")
     html_content = template.render(**context)
 
     return await render_html(
         html_content=html_content,
         selector="#capture-card",
-        viewport_width=1000,
+        viewport_width=card_width + 40,
         viewport_height=1600,
     )

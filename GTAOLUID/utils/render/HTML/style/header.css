@@ -1,0 +1,130 @@
+/* 玩家身份顶栏：总览与详情共用（高透纯黑底，无描边） */
+.mod-header {
+  padding: 18px 24px;
+  background: rgba(14, 14, 14, 0.72);
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 6px;
+  background: #1c1c1c;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+/* 帮会徽章：白底黑字，底部帮会主题色 */
+.crew-badge {
+  background: #ffffff;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px 1px 7px;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  display: inline-block;
+}
+
+/* 角色等级：GTAOL同款蓝色透明地球背景 */
+.rank-globe-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rank-globe {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-globe svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.rank-globe .rank-num {
+  position: relative;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.user-sub {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-balances {
+  display: flex;
+  gap: 20px;
+  text-align: right;
+}
+
+.bal-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.bal-lbl {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bal-val {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bal-cash {
+  color: #2ecc71;
+}
+
+.bal-bank {
+  color: #2ecc71;
+}

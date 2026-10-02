@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>GTAOL 玩家详情</title>
+<title>GTAOL 玩家详细信息</title>
 <style>
   @font-face {
     font-family: 'youyuan';
@@ -12,26 +12,42 @@
   }
   {{ css_content|safe }}
   .card {
+    width: {{ card_width }}px;
     background-image:
       linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
       url('{{ bg_uri }}');
+  }
+  .crew-badge {
+    border-bottom: 3px solid {{ crew_color }};
   }
 </style>
 </head>
 <body>
 
+{% macro render_blocks(blocks) %}
+{% for b in blocks %}{% if b.group %}
+<div class="nested-card">
+  <div class="nested-title">{{ b.label }}</div>
+  {{ render_blocks(b.children) }}
+</div>
+{% else %}
+<div class="kv-item">
+  <div class="kv-lbl">{{ b.label }}</div>
+  <div class="kv-val">{{ b.value }}</div>
+</div>
+{% endif %}{% endfor %}
+{% endmacro %}
+
 <div class="card" id="capture-card">
 
-  <div class="detail-header">
-    <span class="detail-title">玩家详情</span>
-    <span class="detail-count">共 {{ items|length }} 项</span>
-  </div>
+  {% include "_player_header.html" %}
 
-  <div class="kv-columns">
-    {% for it in items %}
-    <div class="kv-item">
-      <div class="kv-lbl">{{ it.label }}</div>
-      <div class="kv-val">{{ it.value }}</div>
+  <div class="detail-title-line">· 玩家详细信息 ·</div>
+
+  <div class="detail-columns">
+    {% for col in columns %}
+    <div class="detail-col">
+      {{ render_blocks(col) }}
     </div>
     {% endfor %}
   </div>
