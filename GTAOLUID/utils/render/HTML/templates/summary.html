@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GTAOL 玩家综合总览</title>
+<style>
+  @font-face {
+    font-family: 'youyuan';
+    src: url('{{ font_uri }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  {{ css_content|safe }}
+  .card {
+    background-image: 
+      linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
+      url('{{ bg_uri }}');
+  }
+  .crew-badge {
+    border-bottom: 3px solid {{ crew_color }};
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="capture-card">
+
+  <!-- 1. 玩家信息模块 -->
+  <div class="mod-header">
+    <div class="user-left">
+      <img class="avatar" src="{{ avatar_src }}" alt="Avatar">
+      <div class="user-details">
+        <div class="name-row">
+          <span class="user-name">{{ nickname }}</span>
+          {% if crew_tag %}<span class="crew-badge">{{ crew_tag }}</span>{% endif %}
+          <div class="rank-globe-box">
+            <div class="rank-globe">
+              <svg viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="14" fill="rgba(14, 116, 227, 0.35)" stroke="#38bdf8" stroke-width="1.5"/>
+                <ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="rgba(56, 189, 248, 0.45)" stroke-width="1"/>
+                <ellipse cx="16" cy="16" rx="6" ry="14" fill="none" stroke="rgba(56, 189, 248, 0.45)" stroke-width="1"/>
+                <line x1="2" y1="16" x2="30" y2="16" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1"/>
+                <line x1="16" y1="2" x2="16" y2="30" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1"/>
+              </svg>
+              <span class="rank-num">{{ rank }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="user-sub">
+          <span>{{ platform_name }}</span>
+          <span>RID: {{ rid }}</span>
+          <span>在线时长：{{ time_played }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-balances">
+      <div class="bal-col">
+        <span class="bal-lbl">现金</span>
+        <span class="bal-val bal-cash">${{ cash_str }}</span>
+      </div>
+      <div class="bal-col">
+        <span class="bal-lbl">银行</span>
+        <span class="bal-val bal-bank">${{ bank_str }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-container">
+
+    <!-- 2. 资金收支圆圈大模块 -->
+    <div class="finance-module">
+      <div class="mod-title">· 资金收支分布 ·</div>
+      <div class="circles-row">
+        <div class="circle-col">{{ in_svg|safe }}</div>
+        <div class="circle-col">{{ ex_svg|safe }}</div>
+      </div>
+      <div class="tip-line">
+        详情通过 <span>gtaxxx</span> 命令查看
+      </div>
+    </div>
+
+    <!-- 3. 两列模块化布局 -->
+    <div class="modular-grid">
+
+      <!-- 模块 1-Left: 角色体能属性 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 角色体能属性 ·</div>
+          <div class="skills-row">
+            {% for sk in skills %}
+            <div class="sk-item">
+              <div class="sk-top"><span>{{ sk.name }}</span><strong>{{ sk.value }}</strong></div>
+              <div class="sk-bar"><div class="sk-fill" style="width: {{ sk.value }}; {% if sk.is_mental %}background: #ef4444;{% endif %}"></div></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+      <!-- 模块 1-Right: 战斗表现数据 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 战斗表现数据 ·</div>
+          <div class="cell-grid">
+            {% for it in combat_items %}
+            <div class="cell-unit">
+              <div class="u-lbl">{{ it.label }}</div>
+              <div class="u-val {{ it.color_cls }}">{{ it.val }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% if favorite_weapon %}
+          <div class="cell-unit" style="margin-bottom: 4px;">
+            <div class="u-lbl">最爱武器：{{ favorite_weapon.name }}</div>
+            <div style="font-size: 11px; color: #cbd5e1; display: flex; justify-content: space-between;">
+              <span>击杀：<strong style="color: #f1f5f9;">{{ favorite_weapon.kills }}</strong></span>
+              <span>爆头：<strong style="color: #f1f5f9;">{{ favorite_weapon.headshots }}</strong></span>
+              <span>精度：<strong style="color: #f1f5f9;">{{ favorite_weapon.accuracy }}</strong></span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+      <!-- 模块 2-Left: 载具驾驶数据 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 载具驾驶数据 ·</div>
+          <div class="cell-grid">
+            {% for it in vehicle_items %}
+            <div class="cell-unit">
+              <div class="u-lbl">{{ it.label }}</div>
+              <div class="u-val {{ it.color_cls }}">{{ it.val }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+      <!-- 模块 2-Right: 犯罪通缉数据 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 犯罪通缉数据 ·</div>
+          <div class="cell-grid">
+            {% for it in wanted_items %}
+            <div class="cell-unit">
+              <div class="u-lbl">{{ it.label }}</div>
+              <div class="u-val {{ it.color_cls }}">{{ it.val }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+      <!-- 模块 3-Left: 竞技活动数据 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 竞技活动数据 ·</div>
+          <div class="cell-grid">
+            {% for it in comp_items %}
+            <div class="cell-unit">
+              <div class="u-lbl">{{ it.label }}</div>
+              <div class="u-val {{ it.color_cls }}">{{ it.val }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+      <!-- 模块 3-Right: 奖章成就数据 -->
+      <div class="module-card">
+        <div>
+          <div class="mod-title">· 奖章成就数据 ·</div>
+          <div class="cell-grid">
+            <div class="cell-unit">
+              <div class="u-lbl">已解锁铂金奖章</div>
+              <div class="u-val val-gold">{{ medals_summary.plat_count }} / {{ medals_summary.total_medals }}</div>
+            </div>
+            {% for h in medals_summary.highlights %}
+            <div class="cell-unit">
+              <div class="u-lbl">{{ h.name }}</div>
+              <div class="u-val {{ h.color_cls }}">{{ h.status }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="cell-unit" style="margin-bottom: 4px;">
+            <div class="u-lbl">最近解锁动态</div>
+            <div style="font-size: 11px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              {{ medals_summary.recent_activity }}
+            </div>
+          </div>
+        </div>
+        <div class="tip-line">
+          详情通过 <span>gtaxxx</span> 命令查看
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 4. 底部注脚 -->
+  <div class="card-footer">
+    Create by <span class="footer-hl">GsCore</span> &amp; Power by <span class="footer-hl">GTAOLUID</span> &amp; Data by <span class="footer-hl">洛圣都Express</span>
+  </div>
+
+</div>
+
+</body>
+</html>

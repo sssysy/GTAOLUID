@@ -1,0 +1,314 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #090b10;
+  color: #e2e8f0;
+  font-family: 'youyuan', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+/* 外层画布：直角无圆角（防JPEG黑边），背景等比放大上下铺满居中 */
+.card {
+  width: 820px;
+  position: relative;
+  border-radius: 0;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 1. 顶栏玩家信息模块（高透纯黑底，无描边） */
+.mod-header {
+  padding: 18px 24px;
+  background: rgba(14, 14, 14, 0.72);
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 6px;
+  background: #1c1c1c;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+/* 帮会徽章：白底黑字，底部帮会主题色 */
+.crew-badge {
+  background: #ffffff;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px 1px 7px;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  display: inline-block;
+}
+
+/* 角色等级：GTAOL同款蓝色透明地球背景 */
+.rank-globe-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rank-globe {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-globe svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.rank-globe .rank-num {
+  position: relative;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.user-sub {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-balances {
+  display: flex;
+  gap: 20px;
+  text-align: right;
+}
+
+.bal-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.bal-lbl {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bal-val {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bal-cash {
+  color: #2ecc71;
+}
+
+.bal-bank {
+  color: #2ecc71;
+}
+
+/* 模块化容器：左右统一对齐，所有卡片保持相同内外边距 */
+.modules-container {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 基础模块卡片（半透明黑色，高透光，无描边） */
+.module-card {
+  background: rgba(14, 14, 14, 0.62);
+  border: none;
+  border-radius: 6px;
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* 2. 资金收支圆圈模块（单个干净大卡片，半透明黑色，高透光，无描边，内部不套额外容器） */
+.finance-module {
+  background: rgba(14, 14, 14, 0.62);
+  border: none;
+  border-radius: 6px;
+  padding: 14px 18px 10px;
+}
+
+.circles-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.circle-col {
+  display: flex;
+  justify-content: center;
+}
+
+/* 3. 两列模块化布局网格 (2-Column Grid) */
+.modular-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.mod-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-align: center;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* 模块内数据直接铺在卡片上（无背景、无描边） */
+.cell-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin-bottom: 8px;
+}
+
+.cell-unit {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+}
+
+.u-lbl {
+  font-size: 11px;
+  color: #9e9e9e;
+  margin-bottom: 2px;
+}
+
+.u-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f5f5f7;
+  font-variant-numeric: tabular-nums;
+}
+
+.val-gold {
+  color: #fbbf24;
+}
+
+.val-green {
+  color: #22c55e;
+}
+
+/* 技能条直接铺在卡片上（无背景、无描边） */
+.skills-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.sk-item {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+}
+
+.sk-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #d1d5db;
+  margin-bottom: 4px;
+}
+
+.sk-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sk-fill {
+  height: 100%;
+  background: #38bdf8;
+  border-radius: 2px;
+}
+
+/* 居中小字命令提示 */
+.tip-line {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+
+.tip-line span {
+  color: #38bdf8;
+}
+
+/* 底部 footer：直接以画布为背景，无黑底无描边 */
+.card-footer {
+  padding: 8px 12px 18px;
+  font-size: 11px;
+  font-weight: normal;
+  color: #94a3b8;
+  text-align: center;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+}
+
+.card-footer .footer-hl {
+  color: #f1f5f9;
+  font-weight: 500;
+}
