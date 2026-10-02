@@ -1,9 +1,10 @@
 import asyncio
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Callable, Awaitable, Dict, List, Tuple, Optional
 
 from gsuid_core.logger import logger
 
 from ..utils.helpers.api import (
+    GTAOLApiError,
     get_status,
     poll_index,
     post_query,
@@ -44,37 +45,42 @@ async def bind_account_service(
     user_id: str,
     game_id: str,
     raw_platform: Optional[str] = None,
+    on_first_fetch: Optional[Callable[[], Awaitable[Any]]] = None,
 ) -> str:
-    """处理账号绑定逻辑，并按规范同步玩家快照数据。"""
+    """校验玩家数据可用后写入绑定记录；取不到快照视为绑定失败，不落库。
+
+    Args:
+        on_first_fetch: 进入首次拉取快照分支时的进度回调，可为 None。
+    """
     plat_code = normalize_platform(raw_platform)
     plat_name = get_platform_name(plat_code)
     plat_api = get_platform_api(plat_code)
 
-    # 1. 写入或覆盖数据库绑定
+    # 1. 校验玩家并获取快照索引：有历史快照直接取用，无历史快照则触发一次异步拉取
+    status_body = await get_status(game_id)
+    latest_index = get_latest_index_from_status(status_body, platform=plat_api)
+
+    if not latest_index:
+        logger.info(f"[GTAOnline · 账户绑定] {game_id} 无历史快照，触发一次异步拉取")
+        if on_first_fetch is not None:
+            await on_first_fetch()
+        await post_query(game_id, platform=plat_api)
+        latest_index = await poll_index(game_id, platform=plat_api)
+
+    if not latest_index:
+        raise GTAOLApiError(f"未在 2 分钟内获取到 [{game_id}] 的玩家数据，请稍后重试")
+
+    # 2. 快照确认可用后才写入绑定，避免绑定失败留下记录
+    data = await get_snapshot(latest_index)
+    save_player_snapshot(game_id, latest_index, data)
+
     await GTAUser.bind_account(
         user_id=user_id,
         bot_id=bot_id,
         game_id=game_id,
         platform=plat_code,
     )
-
-    # 2. 检查并同步快照：有历史快照直接下载最新一条；无历史快照则触发一次后台拉取
-    status_body = await get_status(game_id)
-    latest_index = get_latest_index_from_status(status_body, platform=plat_api)
-
-    if latest_index:
-        logger.info(f"[GTAOnline · 账户绑定] 发现已有快照 {latest_index}，直接下载至本地")
-        data = await get_snapshot(latest_index)
-        save_player_snapshot(game_id, latest_index, data)
-        await _save_account_profile(bot_id, user_id, game_id, data)
-    else:
-        logger.info(f"[GTAOnline · 账户绑定] {game_id} 无历史快照，触发一次异步拉取")
-        await post_query(game_id, platform=plat_api)
-        idx = await poll_index(game_id, platform=plat_api)
-        if idx:
-            data = await get_snapshot(idx)
-            save_player_snapshot(game_id, idx, data)
-            await _save_account_profile(bot_id, user_id, game_id, data)
+    await _save_account_profile(bot_id, user_id, game_id, data)
 
     # 3. 组织成功提示
     guide = format_platform_guide()

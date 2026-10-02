@@ -16,28 +16,32 @@ sv_gtaol_bind = SV("GTAOL账户绑定")
 async def gtaol_bind_account(bot: Bot, ev: Event) -> None:
     text = ev.text.strip()
     if not text:
-        await bot.send("请在命令后附带游戏ID。\n例如：gta绑定 sssysy")
+        await bot.send("请在命令后附带游戏ID。\n例如：gta绑定 sssysy", at_sender=True)
         return
 
     parts = text.split()
     game_id = parts[0]
     platform = parts[1] if len(parts) > 1 else ""
 
-    await bot.send(f"正在为 [{game_id}] 验证并同步数据，请稍候……")
+    await bot.send(f"正在为 [{game_id}] 验证并同步数据，请稍候……", at_sender=True)
     try:
         msg = await bind_account_service(
             bot_id=ev.bot_id,
             user_id=ev.user_id,
             game_id=game_id,
             raw_platform=platform,
+            on_first_fetch=lambda: bot.send(
+                f"未找到 [{game_id}] 的历史快照，正在首次拉取，可能需要 1 分钟左右，请耐心等待……",
+                at_sender=True,
+            ),
         )
-        await bot.send(msg)
+        await bot.send(msg, at_sender=True)
     except GTAOLApiError as e:
-        logger.warning(f"[GTAOnline · 账户绑定] 用户 {ev.user_id} 绑定 {game_id} 同步失败: {e}")
-        await bot.send(f"绑定已记录，但玩家数据同步失败：\n{e}\n可稍后使用 gta刷新数据 重试。")
+        logger.warning(f"[GTAOnline · 账户绑定] 用户 {ev.user_id} 绑定 {game_id} 失败: {e}")
+        await bot.send(f"绑定失败：{e}", at_sender=True)
     except Exception as e:
         logger.exception(f"[GTAOnline · 账户绑定] 用户 {ev.user_id} 绑定 {game_id} 异常: {e}")
-        await bot.send("绑定过程出现异常，请稍后重试。")
+        await bot.send("绑定过程出现异常，请稍后重试。", at_sender=True)
 
 
 @sv_gtaol_bind.on_command("解绑", block=True)

@@ -44,6 +44,8 @@ async def get_status(nickname: str, limit: int = 50) -> dict[str, Any]:
     """查询玩家基本信息与历史快照记录。"""
     data = await _get("/api/status", {"nickname": nickname, "limit": limit})
     _require_ok(data, "玩家信息查询")
+    if not data.get("payload"):
+        raise GTAOLApiError(f"未找到玩家 [{nickname}]")
     body = data.get("body")
     if not isinstance(body, dict):
         raise GTAOLApiError("玩家信息查询 响应缺少 body")
