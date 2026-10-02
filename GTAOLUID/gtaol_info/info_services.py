@@ -8,9 +8,9 @@ from gsuid_core.logger import logger
 
 from ..utils.downloader import download
 from ..utils.database.models import GTAUser
+from ..utils.utils.user_avatar import get_core_user_avatar
 from ..utils.render.HTML.render import render_detail_card, render_summary_card
 from ..utils.helpers.player_data import get_latest_player_snapshot
-from ..utils.utils.user_avatar import get_core_user_avatar
 
 # 接口自带的元数据/审核字段，详情不展示
 _META_KEYS = {
@@ -239,6 +239,12 @@ async def _assemble_overview_data(
     if in_total > tracked_in:
         diff_in = in_total - tracked_in
         income_items.append({"name": "未记录收入", "value": diff_in, "color": "#95a5a6"})
+
+    # 收支差距并入收入环，使收入环总额与含当前结余的资金去向环对齐
+    in_gap = _parse_money(d.get("收支差距", 0))
+    if in_gap > 0:
+        income_items.append({"name": "收支差距", "value": in_gap, "color": "#e74c3c"})
+        in_total += in_gap
 
     ex_prop = _parse_money(d.get("房产和公用事业花费", 0))
     ex_veh = _parse_money(d.get("载具和维护花费", 0))
