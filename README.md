@@ -1,7 +1,9 @@
 # GTAOLUID
 
 <p align="center">
-  <a href="ICON.png" width="256" height="256" alt="GTAOnlineUID"></a>
+  <a href="ICON.png">
+    <img src="ICON.png" width="256" height="256" alt="GTAOnlineUID">
+  </a>
 </p>
 <h1 align="center">GTAOLUID</h1>
 <h4 align="center">基于 gsuid_core 的 多功能 GTA 线上模式查询插件</h4>
