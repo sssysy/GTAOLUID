@@ -40,6 +40,14 @@
         "need_admin": false
       },
       {
+        "name": "收支差",
+        "desc": "查看玩家详细收支差数据",
+        "eg": "收支差",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
         "name": "玩家详情",
         "desc": "查看玩家细项数据详情卡片",
         "eg": "玩家详情",

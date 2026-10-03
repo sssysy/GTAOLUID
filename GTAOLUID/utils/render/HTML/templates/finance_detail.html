@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GTAOL 收支明细</title>
+<style>
+  @font-face {
+    font-family: 'youyuan';
+    src: url('{{ font_uri }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  {{ css_content|safe }}
+  .card {
+    background-image:
+      linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
+      url('{{ bg_uri }}');
+  }
+  .crew-badge {
+    border-bottom: 3px solid {{ crew_color }};
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="capture-card">
+
+  {% include "_player_header.html" %}
+
+  <div class="modules-container">
+
+    <div class="finance-bars">
+
+      <div class="module-card">
+        <div class="mod-title">· 资金去向 ·</div>
+        <div class="col-circle">{{ ex_svg|safe }}</div>
+        <div class="bars-list">
+          {% for row in expense_rows %}
+          <div class="bar-item">
+            <div class="bar-top">
+              <span class="bar-name">{{ row.name }}</span>
+              <span class="bar-val">${{ row.amount_str }}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: {{ row.pct }}%; background: {{ row.color }};"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="mod-title">· 收入来源 ·</div>
+        <div class="col-circle">{{ in_svg|safe }}</div>
+        <div class="bars-list">
+          {% for row in income_rows %}
+          <div class="bar-item">
+            <div class="bar-top">
+              <span class="bar-name">{{ row.name }}</span>
+              <span class="bar-val">${{ row.amount_str }}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: {{ row.pct }}%; background: {{ row.color }};"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="module-card">
+      <div class="balance-top">
+        <span class="balance-name">收支差</span>
+        <span class="balance-val">{{ balance_amount_str }} <em>占总收入 {{ balance_pct_str }}</em></span>
+      </div>
+      <div class="balance-track">
+        <div class="balance-red" style="width: {{ red_pct }}%;"></div>
+        <div class="balance-green" style="width: {{ green_pct }}%;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card-footer">
+    Create by <span class="footer-hl">GsCore</span> &amp; Power by <span class="footer-hl">GTAOLUID</span> &amp; Data by <span class="footer-hl">洛圣都Express</span>
+  </div>
+
+</div>
+
+</body>
+</html>

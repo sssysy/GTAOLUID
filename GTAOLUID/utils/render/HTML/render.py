@@ -309,6 +309,94 @@ async def render_summary_card(data: Dict[str, Any]) -> bytes:
     )
 
 
+def _build_bar_rows(total_name: str, total_value: float, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """把总额与分类整理成条形清单行，按金额降序并换算相对总额的占比。"""
+    rows: List[Dict[str, Any]] = [
+        {
+            "name": total_name,
+            "amount_str": _format_money(total_value),
+            "pct": 100.0 if total_value > 0 else 0.0,
+            "color": "#fbbf24",
+        }
+    ]
+    for it in sorted(items, key=lambda x: x["value"], reverse=True):
+        pct = (it["value"] / total_value * 100.0) if total_value > 0 else 0.0
+        rows.append(
+            {
+                "name": it["name"],
+                "amount_str": _format_money(it["value"]),
+                "pct": min(pct, 100.0),
+                "color": it["color"],
+            }
+        )
+    return rows
+
+
+async def render_finance_detail_card(data: Dict[str, Any]) -> bytes:
+    """收入/支出明细与收支差进度条卡片渲染入口。
+
+    Args:
+        data: 业务层组装好的身份头部与收支分类数据。
+
+    Returns:
+        渲染产出的 JPEG 字节。
+    """
+    income_total = float(data.get("income_total") or 0.0)
+    expense_total = float(data.get("expense_total") or 0.0)
+
+    income_rows = _build_bar_rows("总收入", income_total, data.get("income_items") or [])
+    expense_rows = _build_bar_rows("总消费", expense_total, data.get("expense_items") or [])
+
+    # 顶部两个环形图沿用总览口径，分类里含「收支差距」「当前结余」对齐项
+    ring_income = [dict(it) for it in data.get("ring_income_items") or []]
+    ring_expense = [dict(it) for it in data.get("ring_expense_items") or []]
+    for it in ring_income:
+        it["amount_str"] = _format_money(it["value"])
+    for it in ring_expense:
+        it["amount_str"] = _format_money(it["value"])
+    ring_income_total = float(data.get("ring_income_total") or 0.0)
+    ring_expense_total = float(data.get("ring_expense_total") or 0.0)
+    in_svg = _render_donut_svg_staggered(
+        _calculate_donut_staggered(ring_income), "收入来源", f"${_format_money(ring_income_total)}"
+    )
+    ex_svg = _render_donut_svg_staggered(
+        _calculate_donut_staggered(ring_expense), "资金去向", f"${_format_money(ring_expense_total)}"
+    )
+
+    # 收支差进度条整条以总收入为 100%：绿色为总支出占比，红色为剩余收支差占比
+    balance = income_total - expense_total
+    green_pct = min(expense_total / income_total * 100.0, 100.0) if income_total > 0 else 0.0
+    red_pct = max(100.0 - green_pct, 0.0)
+    balance_amount_str = f"-${_format_money(abs(balance))}" if balance < 0 else f"${_format_money(balance)}"
+    balance_pct_str = f"{balance / income_total * 100.0:.1f}%" if income_total > 0 else "0.0%"
+
+    css_content = _read_style("header.css", "finance_detail.css")
+    context = {
+        **data,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
+        "css_content": css_content,
+        "income_rows": income_rows,
+        "expense_rows": expense_rows,
+        "in_svg": in_svg,
+        "ex_svg": ex_svg,
+        "balance_amount_str": balance_amount_str,
+        "balance_pct_str": balance_pct_str,
+        "red_pct": red_pct,
+        "green_pct": green_pct,
+    }
+
+    template = _ENV.get_template("finance_detail.html")
+    html_content = template.render(**context)
+
+    return await render_html(
+        html_content=html_content,
+        selector="#capture-card",
+        viewport_width=900,
+        viewport_height=1400,
+    )
+
+
 def _build_detail_columns(
     tree: List[Dict[str, Any]],
     max_rows: int = _DETAIL_ROWS_PER_COL,

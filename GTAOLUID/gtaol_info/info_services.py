@@ -9,7 +9,11 @@ from gsuid_core.logger import logger
 from ..utils.downloader import download
 from ..utils.database.models import GTAUser
 from ..utils.utils.user_avatar import get_core_user_avatar
-from ..utils.render.HTML.render import render_detail_card, render_summary_card
+from ..utils.render.HTML.render import (
+    render_detail_card,
+    render_summary_card,
+    render_finance_detail_card,
+)
 from ..utils.helpers.player_data import get_latest_player_snapshot
 
 # 接口自带的元数据/审核字段，详情不展示
@@ -206,24 +210,18 @@ async def _assemble_identity(
     }
 
 
-async def _assemble_overview_data(
-    game_id: str,
-    raw_data: Dict[str, Any],
-    user_avatar_url: Optional[str],
-) -> Dict[str, Any]:
-    """清洗快照原始数据并组装为供渲染层消费的纯结构化字典。
+def _assemble_finance_items(body: Dict[str, Any]) -> Dict[str, Any]:
+    """组装收入与支出的分类列表及接口原始总额，缺失或异常字段严格回退为 0。
 
-    所有缺失或异常字段严格回退为 0 或 None，严禁填入任何测试假数据。
+    Returns:
+        income_items/expense_items: 带配色与金额的分类列表，不含环形图对齐用的派生项；
+        income_total/expense_total: 接口给出的原始总额。
     """
-    d: Dict[str, Any] = raw_data.get("body", raw_data)
-    identity = await _assemble_identity(game_id, d, user_avatar_url)
-
-    # 1. 资金收入与支出明细
-    in_jobs = _parse_money(d.get("差事收入", 0))
-    in_reward = _parse_money(d.get("表现良好奖励收入", 0))
-    in_bet = _parse_money(d.get("赌博收入", 0))
-    in_car = _parse_money(d.get("出售载具收入", 0))
-    in_total = _parse_money(d.get("总收入", 0))
+    in_jobs = _parse_money(body.get("差事收入", 0))
+    in_reward = _parse_money(body.get("表现良好奖励收入", 0))
+    in_bet = _parse_money(body.get("赌博收入", 0))
+    in_car = _parse_money(body.get("出售载具收入", 0))
+    in_total = _parse_money(body.get("总收入", 0))
 
     income_items: List[Dict[str, Any]] = []
     if in_jobs > 0:
@@ -237,22 +235,15 @@ async def _assemble_overview_data(
 
     tracked_in = in_jobs + in_reward + in_bet + in_car
     if in_total > tracked_in:
-        diff_in = in_total - tracked_in
-        income_items.append({"name": "未记录收入", "value": diff_in, "color": "#95a5a6"})
+        income_items.append({"name": "未记录收入", "value": in_total - tracked_in, "color": "#95a5a6"})
 
-    # 收支差距并入收入环，使收入环总额与含当前结余的资金去向环对齐
-    in_gap = _parse_money(d.get("收支差距", 0))
-    if in_gap > 0:
-        income_items.append({"name": "收支差距", "value": in_gap, "color": "#e74c3c"})
-        in_total += in_gap
-
-    ex_prop = _parse_money(d.get("房产和公用事业花费", 0))
-    ex_veh = _parse_money(d.get("载具和维护花费", 0))
-    ex_job = _parse_money(d.get("差事和活动入场花费", 0))
-    ex_wpn = _parse_money(d.get("武器和护甲花费", 0))
-    ex_ent = _parse_money(d.get("风格和娱乐花费", 0))
-    ex_med = _parse_money(d.get("医疗花费", 0))
-    ex_total = _parse_money(d.get("总花费", 0))
+    ex_prop = _parse_money(body.get("房产和公用事业花费", 0))
+    ex_veh = _parse_money(body.get("载具和维护花费", 0))
+    ex_job = _parse_money(body.get("差事和活动入场花费", 0))
+    ex_wpn = _parse_money(body.get("武器和护甲花费", 0))
+    ex_ent = _parse_money(body.get("风格和娱乐花费", 0))
+    ex_med = _parse_money(body.get("医疗花费", 0))
+    ex_total = _parse_money(body.get("总花费", 0))
 
     expense_items: List[Dict[str, Any]] = []
     if ex_prop > 0:
@@ -268,9 +259,62 @@ async def _assemble_overview_data(
     if ex_med > 0:
         expense_items.append({"name": "医疗联络", "value": ex_med, "color": "#1abc9c"})
 
+    return {
+        "income_items": income_items,
+        "income_total": in_total,
+        "expense_items": expense_items,
+        "expense_total": ex_total,
+    }
+
+
+def _build_ring_items(
+    body: Dict[str, Any],
+    identity: Dict[str, Any],
+    finance: Dict[str, Any],
+) -> Dict[str, Any]:
+    """在基础分类上并入对齐用派生项，返回供环形图使用的一套分类与总额。
+
+    「收支差距」并入收入环、「当前结余」并入支出环，使两个环的总额相互对齐。
+    """
+    income_items = list(finance["income_items"])
+    expense_items = list(finance["expense_items"])
+    in_total = finance["income_total"]
+
+    in_gap = _parse_money(body.get("收支差距", 0))
+    if in_gap > 0:
+        income_items.append({"name": "收支差距", "value": in_gap, "color": "#e74c3c"})
+        in_total += in_gap
+
     cur_balance = float(identity["cash_num"] + identity["bank_num"])
     if cur_balance > 0:
         expense_items.append({"name": "当前结余", "value": cur_balance, "color": "#2ecc71"})
+
+    return {
+        "income_items": income_items,
+        "income_total": in_total,
+        "expense_items": expense_items,
+        "expense_total": finance["expense_total"],
+    }
+
+
+async def _assemble_overview_data(
+    game_id: str,
+    raw_data: Dict[str, Any],
+    user_avatar_url: Optional[str],
+) -> Dict[str, Any]:
+    """清洗快照原始数据并组装为供渲染层消费的纯结构化字典。
+
+    所有缺失或异常字段严格回退为 0 或 None，严禁填入任何测试假数据。
+    """
+    d: Dict[str, Any] = raw_data.get("body", raw_data)
+    identity = await _assemble_identity(game_id, d, user_avatar_url)
+
+    # 1. 资金收入与支出明细
+    ring = _build_ring_items(d, identity, _assemble_finance_items(d))
+    income_items = ring["income_items"]
+    in_total = ring["income_total"]
+    expense_items = ring["expense_items"]
+    ex_total = ring["expense_total"]
 
     # 3. 角色体能属性
     skills = [
@@ -538,3 +582,46 @@ async def render_detail_service(
     except Exception as e:
         logger.exception(f"[GTAOnline · 玩家详情] 渲染详情卡片异常: {e}")
         return None, "渲染详情图片失败，请稍后重试。"
+
+
+async def render_finance_detail_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[bytes], str]:
+    """生成玩家收入、支出分类明细与收支差进度条图片。
+
+    Returns:
+        Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
+    """
+    game_id, local_res, msg = await _resolve_snapshot(bot_id, user_id, target_game_id)
+    if local_res is None:
+        return None, msg
+
+    snapshot_file, raw_data = local_res
+    logger.info(f"[GTAOnline · 收支差] 开始为 {game_id} 组装数据，数据源: {snapshot_file.name}")
+
+    try:
+        body = raw_data.get("body", raw_data)
+        if not isinstance(body, dict):
+            return None, f"未找到 [{game_id}] 可展示的收支数据。"
+        user_avatar_url = await get_core_user_avatar(user_id)
+        header = await _assemble_identity(game_id, body, user_avatar_url)
+        finance = _assemble_finance_items(body)
+        ring = _build_ring_items(body, header, finance)
+        data = {
+            **header,
+            "income_items": finance["income_items"],
+            "income_total": finance["income_total"],
+            "expense_items": finance["expense_items"],
+            "expense_total": finance["expense_total"],
+            "ring_income_items": ring["income_items"],
+            "ring_income_total": ring["income_total"],
+            "ring_expense_items": ring["expense_items"],
+            "ring_expense_total": ring["expense_total"],
+        }
+        img_bytes = await render_finance_detail_card(data)
+        return img_bytes, "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 收支差] 渲染收支差卡片异常: {e}")
+        return None, "渲染收支差图片失败，请稍后重试。"
