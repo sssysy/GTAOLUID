@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Callable, Awaitable, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Callable, Optional, Awaitable
 
 from gsuid_core.logger import logger
 

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GTAOL 差事详情</title>
+<style>
+  @font-face {
+    font-family: 'youyuan';
+    src: url('{{ font_uri }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  {{ css_content|safe }}
+  .card {
+    width: 720px;
+    background-image:
+      linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
+      url('{{ bg_uri }}');
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="capture-card">
+
+  <!-- 1. 标题栏：左侧标题，右侧插件标识 -->
+  <div class="mod-header">
+    <div class="user-left">
+      <div class="user-details">
+        <div class="user-name">差事详情</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <img class="plugin-icon" src="{{ icon_uri }}" alt="Icon">
+    </div>
+  </div>
+
+  <!-- 2. 通栏差事图 -->
+  <div class="job-hero">
+    {% if img_uri %}<img src="{{ img_uri }}" alt="Job">{% endif %}
+  </div>
+
+  <div class="detail-body">
+
+    <!-- 3. 主信息卡：名称与评价、作者、简介 -->
+    <div class="detail-card">
+      <div class="title-row">
+        <div class="job-title">{{ name|e }}</div>
+        <div class="rating-box">
+          <div class="rating-col">
+            <div class="rating-num col-like">{{ like }}</div>
+            <div class="rating-lbl">赞</div>
+          </div>
+          <div class="rating-col">
+            <div class="rating-num col-dislike">{{ dislike }}</div>
+            <div class="rating-lbl">踩</div>
+          </div>
+          <div class="rating-col">
+            <div class="rating-num col-rate">{{ rate }}%</div>
+            <div class="rating-lbl">好评率</div>
+          </div>
+        </div>
+      </div>
+
+      {% if author %}
+      <div class="author-row">
+        {% if author_avatar %}<img class="author-avatar" src="{{ author_avatar }}" alt="Author">{% endif %}
+        <div class="author-name">{{ author|e }}</div>
+      </div>
+      {% endif %}
+
+      {% if desc %}<div class="job-desc">{{ desc|e }}</div>{% endif %}
+    </div>
+
+    <!-- 4. 其他信息卡：一行一项 -->
+    <div class="detail-card info-panel">
+      {% for row in rows %}
+      <div class="info-row">
+        <div class="info-label">{{ row.label }}</div>
+        <div class="info-value">{{ row.value|e }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- 5. 底部注脚 -->
+  <div class="card-footer">
+    Create by <span class="footer-hl">GsCore</span> &amp; Power by <span class="footer-hl">GTAOLUID</span>
+  </div>
+
+</div>
+
+</body>
+</html>

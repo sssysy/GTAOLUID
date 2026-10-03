@@ -1,0 +1,198 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #090b10;
+  color: #e2e8f0;
+  font-family: 'youyuan', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+/* 外层画布：直角无圆角（防JPEG黑边），背景等比放大上下铺满居中 */
+.card {
+  position: relative;
+  border-radius: 0;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 通栏差事图：无图时保留 16:9 占位 */
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.plugin-icon {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.job-hero {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #1c1c1c;
+}
+
+.job-hero img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-body {
+  padding: 16px 22px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 信息卡：半透明底板，与总览/绑定卡的方块风格一致 */
+.detail-card {
+  background: rgba(14, 14, 14, 0.62);
+  border-radius: 6px;
+  padding: 14px 18px;
+}
+
+/* 名称与评价：名称占满剩余宽度，评价固定右侧 */
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.job-title {
+  flex: 1 1 auto;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #ffffff;
+  word-break: break-word;
+}
+
+.rating-box {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 16px;
+}
+
+.rating-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rating-num {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rating-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.col-like {
+  color: #2ecc71;
+}
+
+.col-dislike {
+  color: #ef4444;
+}
+
+.col-rate {
+  color: #38bdf8;
+}
+
+.author-row {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.author-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+/* 简介：保留原作者换行 */
+.job-desc {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 其他信息：一行一项，缺值项由业务层剔除 */
+.info-panel {
+  padding: 6px 18px;
+}
+
+.info-row {
+  display: flex;
+  gap: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  flex: 0 0 76px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.info-value {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+/* 底部 footer：直接以画布为背景，无黑底无描边 */
+.card-footer {
+  padding: 8px 12px 18px;
+  font-size: 11px;
+  font-weight: normal;
+  color: #94a3b8;
+  text-align: center;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+}
+
+.card-footer .footer-hl {
+  color: #f1f5f9;
+  font-weight: 500;
+}

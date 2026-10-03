@@ -376,9 +376,7 @@ async def render_detail_card(header: Dict[str, Any], tree: List[Dict[str, Any]])
     css_content = _read_style("header.css", "detail.css")
     columns = _build_detail_columns(tree)
     card_width = (
-        _DETAIL_COL_WIDTH * len(columns)
-        + _DETAIL_COL_GAP * max(len(columns) - 1, 0)
-        + _DETAIL_SIDE_PADDING * 2
+        _DETAIL_COL_WIDTH * len(columns) + _DETAIL_COL_GAP * max(len(columns) - 1, 0) + _DETAIL_SIDE_PADDING * 2
     )
 
     context = {
@@ -427,4 +425,62 @@ async def render_bind_list_card(data: Dict[str, Any]) -> bytes:
         selector="#capture-card",
         viewport_width=440,
         viewport_height=900,
+    )
+
+
+async def render_jobs_list_card(data: Dict[str, Any]) -> bytes:
+    """差事推荐列表卡片渲染入口。
+
+    Args:
+        data: 业务层组装的差事条目与筛选回显。
+
+    Returns:
+        渲染产出的 JPEG 字节。
+    """
+    css_content = _read_style("header.css", "jobs_list.css")
+    context = {
+        **data,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
+        "icon_uri": get_icon_url(),
+        "css_content": css_content,
+    }
+
+    template = _ENV.get_template("jobs_list.html")
+    html_content = template.render(**context)
+
+    return await render_html(
+        html_content=html_content,
+        selector="#capture-card",
+        viewport_width=1000,
+        viewport_height=2600,
+    )
+
+
+async def render_jobs_detail_card(data: Dict[str, Any]) -> bytes:
+    """差事详情卡片渲染入口。
+
+    Args:
+        data: 业务层组装的差事详情数据。
+
+    Returns:
+        渲染产出的 JPEG 字节。
+    """
+    css_content = _read_style("header.css", "jobs_detail.css")
+    context = {
+        **data,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
+        "icon_uri": get_icon_url(),
+        "css_content": css_content,
+    }
+
+    template = _ENV.get_template("jobs_detail.html")
+    html_content = template.render(**context)
+
+    return await render_html(
+        html_content=html_content,
+        selector="#capture-card",
+        viewport_width=780,
+        viewport_height=1600,
     )

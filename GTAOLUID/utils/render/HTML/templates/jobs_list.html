@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GTAOL 差事推荐</title>
+<style>
+  @font-face {
+    font-family: 'youyuan';
+    src: url('{{ font_uri }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  {{ css_content|safe }}
+  .card {
+    width: 960px;
+    background-image:
+      linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
+      url('{{ bg_uri }}');
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="capture-card">
+
+  <!-- 1. 标题栏：左侧标题与筛选回显，右侧插件标识 -->
+  <div class="mod-header">
+    <div class="user-left">
+      <div class="user-details">
+        <div class="user-name">差事推荐</div>
+        {% if filter_line %}<div class="user-sub">{{ filter_line|e }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="header-right">
+      <img class="plugin-icon" src="{{ icon_uri }}" alt="Icon">
+    </div>
+  </div>
+
+  <!-- 2. 编号取用提示 -->
+  <div class="tip-bar">· 使用 <span>gta差事详情 1</span> 来查看对应差事详情 ·</div>
+
+  <!-- 3. 差事网格：三列七行 -->
+  <div class="jobs-grid">
+    {% for job in jobs %}
+    <div class="job-item">
+      <div class="job-thumb">
+        {% if job.img_uri %}<img src="{{ job.img_uri }}" alt="Job">{% endif %}
+        <div class="job-index">{{ job.index }}</div>
+      </div>
+      <div class="job-meta">
+        <div class="job-name">{{ job.name|e }}</div>
+        {% if job.author %}<div class="job-line">作者 {{ job.author|e }}</div>{% endif %}
+        <div class="job-line">{% if job.mode %}{{ job.mode|e }} · {% endif %}游玩 {{ job.played }}</div>
+        <div class="job-line">好评 {{ job.rate }}% · ID {{ job.id|e }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 4. 底部注脚 -->
+  <div class="card-footer">
+    Create by <span class="footer-hl">GsCore</span> &amp; Power by <span class="footer-hl">GTAOLUID</span>
+  </div>
+
+</div>
+
+</body>
+</html>
