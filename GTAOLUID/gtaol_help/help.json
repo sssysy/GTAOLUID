@@ -1,0 +1,110 @@
+{
+  "账户相关": {
+    "desc": "绑定与管理 GTAOL 游戏账号",
+    "data": [
+      {
+        "name": "绑定",
+        "desc": "绑定 GTAOL 游戏账号",
+        "eg": "绑定 I-xPsycho-I",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "解绑",
+        "desc": "解绑指定游戏ID",
+        "eg": "解绑",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "查看",
+        "desc": "查看已绑定的 GTAOL 账号列表",
+        "eg": "查看",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      }
+    ]
+  },
+  "数据查询": {
+    "desc": "查询已绑定账号的游戏数据",
+    "data": [
+      {
+        "name": "总览",
+        "desc": "查看玩家资产与数据总览卡片",
+        "eg": "总览",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "玩家详情",
+        "desc": "查看玩家细项数据详情卡片",
+        "eg": "玩家详情",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "刷新数据",
+        "desc": "重新拉取主账号的最新数据",
+        "eg": "刷新数据",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "查封禁",
+        "desc": "查询指定玩家的战眼封禁状态",
+        "eg": "查封禁 I-xPsycho-I",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      }
+    ]
+  },
+  "社区差事": {
+    "desc": "查询 Rockstar 社区差事",
+    "data": [
+      {
+        "name": "差事推荐",
+        "desc": "查看当前热门社区差事推荐列表",
+        "eg": "差事推荐",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "筛选差事推荐",
+        "desc": "按筛选查差事推荐",
+        "eg": "上周热门竞速差事推荐",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "差事详情",
+        "desc": "查看推荐列表中指定编号差事的详情",
+        "eg": "差事详情 1",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      }
+    ]
+  },
+  "其他服务": {
+    "desc": "插件基础服务",
+    "data": [
+      {
+        "name": "帮助",
+        "desc": "呼出本插件帮助菜单",
+        "eg": "帮助",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      }
+    ]
+  }
+}
