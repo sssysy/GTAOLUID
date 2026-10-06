@@ -12,6 +12,7 @@ from gsuid_core.logger import logger
 from ..gtaol_config import GTAOLConfig
 from ..utils.helpers.api import GTAOLApiError, get_status
 from ..utils.database.models import GTAUser
+from ..utils.helpers.sc_cache import name_to_rid
 
 # 战眼 UDP 查询固定超时，不随配置变化
 BATTLEYE_TIMEOUT_SECONDS = 8
@@ -125,7 +126,7 @@ async def query_ban_reason(rid: int, host: str, port: int) -> str:
 
 
 async def _resolve_rid_by_name(game_id: str) -> int:
-    """显式昵称解析 RID：绑定表优先，未命中回退 HQSHI，HQSHI 失败即中止。"""
+    """显式昵称解析 RID：绑定表优先，未命中按配置走 sc-cache，再回退 HQSHI。"""
     bound_accounts: List[GTAUser] = await GTAUser.get_accounts_by_game_id(game_id)
     for account in bound_accounts:
         rid = _parse_rid(account.rockstar_id)
@@ -133,7 +134,15 @@ async def _resolve_rid_by_name(game_id: str) -> int:
             logger.info(f"[GTAOnline · 战眼查询] 绑定表命中 [{game_id}] 的 RID")
             return rid
 
-    logger.info(f"[GTAOnline · 战眼查询] 绑定表未命中可用 RID，回退 HQSHI 查询 [{game_id}]")
+    if GTAOLConfig.get_config("NameConvertUseScCache").data:
+        rid = await name_to_rid(game_id)
+        if rid is not None:
+            logger.info(f"[GTAOnline · 战眼查询] sc-cache 命中 [{game_id}] 的 RID")
+            return rid
+        logger.info(f"[GTAOnline · 战眼查询] sc-cache 未命中 [{game_id}]，回退 HQSHI 查询")
+    else:
+        logger.info(f"[GTAOnline · 战眼查询] 名称转换未启用 sc-cache，回退 HQSHI 查询 [{game_id}]")
+
     status_body = await get_status(game_id)
     rid = _parse_rid(status_body.get("rockstar_id"))
     if rid is None:
