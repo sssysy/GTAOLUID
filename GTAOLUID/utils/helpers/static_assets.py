@@ -2,18 +2,25 @@
 
 from pathlib import Path
 
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from gsuid_core.config import CONFIG_DEFAULT, core_config
 from gsuid_core.app_life import app as fastapi_app
+from gsuid_core.data_store import get_res_path
+
+from ...gtaol_config import GTAOLConfig
 
 _UTILS_DIR = Path(__file__).resolve().parents[1]
 _FONT_PATH = _UTILS_DIR / "fonts" / "youyuan.ttf"
 _BG_PATH = _UTILS_DIR / "render" / "HTML" / "texture2d" / "infobg.jpg"
 _ICON_PATH = _UTILS_DIR / "render" / "HTML" / "texture2d" / "gtaol.png"
+_CUSTOM_BG_DIR = get_res_path("GTAOLUID")
 
 _FONT_ROUTE = "/gtaoluid/fonts"
 _BG_ROUTE = "/gtaoluid/texture2d"
+_CUSTOM_BG_ROUTE = "/gtaoluid/custom_bg"
 
 _mounted = False
 
@@ -37,7 +44,7 @@ def _base_url() -> str:
 
 
 def _ensure_mounted() -> None:
-    """把字体与背景目录挂到核心 FastAPI，重复调用只挂一次。"""
+    """把字体与背景目录、自定义背景路由挂到核心 FastAPI，重复调用只挂一次。"""
     global _mounted
     if _mounted:
         return
@@ -49,6 +56,8 @@ def _ensure_mounted() -> None:
         if route_path in existing or not directory.is_dir():
             continue
         fastapi_app.mount(route_path, _CORSStaticFiles(directory=directory), name=name)
+    if _CUSTOM_BG_ROUTE not in existing:
+        fastapi_app.add_api_route(_CUSTOM_BG_ROUTE, _serve_custom_bg, methods=["GET"])
     _mounted = True
 
 
@@ -60,8 +69,34 @@ def get_font_url() -> str:
     return f"{_base_url()}{_FONT_ROUTE}/{_FONT_PATH.name}"
 
 
+def _custom_bg_path() -> Path | None:
+    """自定义背景文件路径；非配置声明的上传文件、不在插件数据目录内或不存在时返回 None。"""
+    config = GTAOLConfig.get_config("CustomBgPath")
+    data = str(config.data or "").strip()
+    if not data:
+        return None
+    path = Path(data)
+    # 只认上传目标文件本身，避免把数据目录里的其它文件放出去
+    upload_name = f"{config.filename}.{config.suffix}"
+    if path.parent != _CUSTOM_BG_DIR or path.name != upload_name or not path.is_file():
+        return None
+    return path
+
+
+async def _serve_custom_bg() -> FileResponse:
+    """自定义背景直链响应；未配置或文件已被清除时返回 404。"""
+    path = _custom_bg_path()
+    if path is None:
+        raise HTTPException(status_code=404, detail="custom background not configured")
+    return FileResponse(path)
+
+
 def get_bg_url() -> str:
-    """本地背景图直链；图片缺失时回退空串。"""
+    """卡片背景图直链；上传了自定义背景时优先使用，未配置时使用插件默认背景。"""
+    custom_bg = _custom_bg_path()
+    if custom_bg is not None:
+        _ensure_mounted()
+        return f"{_base_url()}{_CUSTOM_BG_ROUTE}"
     if not _BG_PATH.is_file():
         return ""
     _ensure_mounted()

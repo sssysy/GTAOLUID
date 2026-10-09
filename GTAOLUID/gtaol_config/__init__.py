@@ -1,12 +1,26 @@
 """GTAOLUID 插件配置项定义与注册。"""
 
 from gsuid_core.data_store import get_res_path
-from gsuid_core.utils.plugins_config.models import GSC, GsIntConfig, GsStrConfig, GsBoolConfig
+from gsuid_core.utils.plugins_config.models import (
+    GSC,
+    GsIntConfig,
+    GsStrConfig,
+    GsBoolConfig,
+    GsImageConfig,
+)
 from gsuid_core.utils.plugins_config.gs_config import StringConfig
 
 CONFIG_PATH = get_res_path("GTAOLUID") / "config.json"
 
 CONFIG_DEFAULT: dict[str, GSC] = {
+    "CustomBgPath": GsImageConfig(
+        "自定义背景",
+        "卡片渲染使用的自定义背景图；上传后自动生效，未上传时使用插件默认背景",
+        "",
+        str(get_res_path("GTAOLUID")),
+        "bg",
+        "jpg",
+    ),
     "CacheCleanDays": GsIntConfig(
         "缓存自动清理时间 (天)",
         "缓存文件保留天数，超过该天数的缓存将被自动清理；0 表示不自动清理",
