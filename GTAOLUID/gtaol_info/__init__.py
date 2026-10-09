@@ -11,6 +11,9 @@ from .info_services import (
     render_overview_service,
     render_snapshot_list_service,
     render_finance_detail_service,
+    render_snapshot_detail_service,
+    render_snapshot_finance_service,
+    render_snapshot_overview_service,
 )
 from ..utils.helpers.api import GTAOLApiError
 
@@ -90,3 +93,78 @@ async def gtaol_snapshot_list(bot: Bot, ev: Event) -> None:
     except Exception as e:
         logger.exception(f"[GTAOnline · 快照列表] 生成快照列表异常: {e}")
         await bot.send("运行出错，生成快照列表失败，请稍后重试。")
+
+
+@sv_gtaol_info.on_prefix("快照总览", block=True)
+async def gtaol_snapshot_overview(bot: Bot, ev: Event) -> None:
+    parts = ev.text.split()
+    snapshot_id = parts[0] if parts else ""
+    if not snapshot_id:
+        await bot.send("请在命令后附带快照ID。\n例如：gta快照总览 BSPE6L")
+        return
+    try:
+        img_bytes, msg = await render_snapshot_overview_service(
+            bot_id=ev.bot_id,
+            user_id=ev.user_id,
+            snapshot_id=snapshot_id,
+        )
+        if img_bytes is not None:
+            await bot.send(MessageSegment.image(img_bytes))
+        else:
+            await bot.send(msg)
+    except GTAOLApiError as e:
+        logger.warning(f"[GTAOnline · 快照总览] 用户 {ev.user_id} 查询快照 [{snapshot_id}] 失败: {e}")
+        await bot.send(f"运行出错：{e}")
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照总览] 生成快照 [{snapshot_id}] 总览异常: {e}")
+        await bot.send("运行出错，生成总览卡片失败，请稍后重试。")
+
+
+@sv_gtaol_info.on_prefix("快照玩家详情", block=True)
+async def gtaol_snapshot_detail(bot: Bot, ev: Event) -> None:
+    parts = ev.text.split()
+    snapshot_id = parts[0] if parts else ""
+    if not snapshot_id:
+        await bot.send("请在命令后附带快照ID。\n例如：gta快照玩家详情 BSPE6L")
+        return
+    try:
+        img_bytes, msg = await render_snapshot_detail_service(
+            bot_id=ev.bot_id,
+            user_id=ev.user_id,
+            snapshot_id=snapshot_id,
+        )
+        if img_bytes is not None:
+            await bot.send(MessageSegment.image(img_bytes))
+        else:
+            await bot.send(msg)
+    except GTAOLApiError as e:
+        logger.warning(f"[GTAOnline · 快照玩家详情] 用户 {ev.user_id} 查询快照 [{snapshot_id}] 失败: {e}")
+        await bot.send(f"运行出错：{e}")
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照玩家详情] 生成快照 [{snapshot_id}] 详情异常: {e}")
+        await bot.send("运行出错，生成玩家详情卡片失败，请稍后重试。")
+
+
+@sv_gtaol_info.on_prefix("快照收支差", block=True)
+async def gtaol_snapshot_finance(bot: Bot, ev: Event) -> None:
+    parts = ev.text.split()
+    snapshot_id = parts[0] if parts else ""
+    if not snapshot_id:
+        await bot.send("请在命令后附带快照ID。\n例如：gta快照收支差 BSPE6L")
+        return
+    try:
+        img_bytes, msg = await render_snapshot_finance_service(
+            bot_id=ev.bot_id,
+            user_id=ev.user_id,
+            snapshot_id=snapshot_id,
+        )
+        if img_bytes is not None:
+            await bot.send(MessageSegment.image(img_bytes))
+        else:
+            await bot.send(msg)
+    except GTAOLApiError as e:
+        logger.warning(f"[GTAOnline · 快照收支差] 用户 {ev.user_id} 查询快照 [{snapshot_id}] 失败: {e}")
+        await bot.send(f"运行出错：{e}")
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照收支差] 生成快照 [{snapshot_id}] 收支差异常: {e}")
+        await bot.send("运行出错，生成收支差卡片失败，请稍后重试。")

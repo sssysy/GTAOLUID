@@ -76,6 +76,28 @@ def get_latest_player_snapshot(
     return latest_file, data
 
 
+def get_player_snapshot_by_id(
+    snapshot_id: str,
+) -> Optional[Tuple[Path, Dict[str, Any]]]:
+    """按快照ID在本地 playerdata 中查找快照，文件名形如 {游戏ID}_{快照id}_{时间戳}.json。"""
+    target = (snapshot_id or "").strip().lower()
+    if not target or not PLAYER_DATA_DIR.exists():
+        return None
+
+    for file in PLAYER_DATA_DIR.glob("*.json"):
+        parts = file.stem.split("_")
+        if len(parts) < 3 or parts[-2].lower() != target:
+            continue
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            logger.warning(f"[GTAOnline · 数据存储] 读取本地快照 {file.name} 失败: {e}")
+            return None
+        return file, data
+
+    return None
+
+
 def extract_account_profile(snapshot: Dict[str, Any]) -> Dict[str, str]:
     """从快照中提取绑定账户资料（数字ID、头像URL）；缺失字段统一回退为空串。"""
     body = snapshot.get("body", snapshot)

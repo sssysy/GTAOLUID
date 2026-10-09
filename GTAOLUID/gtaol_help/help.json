@@ -64,6 +64,30 @@
         "need_admin": false
       },
       {
+        "name": "快照总览",
+        "desc": "按快照ID查看该快照的总览卡片",
+        "eg": "快照总览 BSPE6L",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "快照玩家详情",
+        "desc": "按快照ID查看该快照的详情卡片",
+        "eg": "快照玩家详情 BSPE6L",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
+        "name": "快照收支差",
+        "desc": "按快照ID查看该快照的收支差卡片",
+        "eg": "快照收支差 BSPE6L",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
         "name": "刷新数据",
         "desc": "重新拉取主账号的最新数据",
         "eg": "刷新数据",

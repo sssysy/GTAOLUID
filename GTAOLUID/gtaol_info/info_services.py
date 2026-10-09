@@ -7,7 +7,7 @@ from pathlib import Path
 from gsuid_core.logger import logger
 
 from ..utils.downloader import download
-from ..utils.helpers.api import get_status
+from ..utils.helpers.api import get_status, get_snapshot
 from ..utils.database.models import GTAUser
 from ..utils.helpers.platform import get_platform_name_by_api
 from ..utils.utils.user_avatar import get_core_user_name, get_core_user_avatar
@@ -17,7 +17,7 @@ from ..utils.render.HTML.render import (
     render_snapshot_list_card,
     render_finance_detail_card,
 )
-from ..utils.helpers.player_data import get_latest_player_snapshot
+from ..utils.helpers.player_data import get_player_snapshot_by_id, get_latest_player_snapshot
 
 # gta快照列表固定只取接口最近 10 条记录
 _SNAPSHOT_LIST_LIMIT = 10
@@ -703,3 +703,107 @@ async def render_snapshot_list_service(
     except Exception as e:
         logger.exception(f"[GTAOnline · 快照列表] 渲染快照列表异常: {e}")
         return None, "生成快照列表图片失败，请稍后重试。"
+
+
+async def _load_snapshot_by_id(snapshot_id: str) -> Dict[str, Any]:
+    """按快照ID取全量快照：本地文件优先，缺失时联网拉取，不落盘。"""
+    local_res = get_player_snapshot_by_id(snapshot_id)
+    if local_res is not None:
+        return local_res[1]
+
+    logger.info(f"[GTAOnline · 快照数据] 本地无快照 [{snapshot_id}]，改为联网拉取")
+    return await get_snapshot(snapshot_id)
+
+
+async def render_snapshot_overview_service(
+    bot_id: str,
+    user_id: str,
+    snapshot_id: str,
+) -> Tuple[Optional[bytes], str]:
+    """按快照ID生成玩家总览卡片。
+
+    Returns:
+        Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
+    """
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+    game_id = str(body.get("昵称") or snapshot_id)
+    logger.info(f"[GTAOnline · 快照总览] 生成快照 [{snapshot_id}] 的总览卡片")
+
+    try:
+        user_avatar_url = await get_core_user_avatar(user_id)
+        overview_data = await _assemble_overview_data(game_id, raw_data, user_avatar_url)
+        return await render_summary_card(overview_data), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照总览] 渲染快照 [{snapshot_id}] 总览卡片异常: {e}")
+        return None, "渲染总览图片失败，请稍后重试。"
+
+
+async def render_snapshot_detail_service(
+    bot_id: str,
+    user_id: str,
+    snapshot_id: str,
+) -> Tuple[Optional[bytes], str]:
+    """按快照ID生成玩家详情卡片。
+
+    Returns:
+        Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
+    """
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+    tree = _build_detail_tree(body)
+    if not tree:
+        return None, f"未找到快照 [{snapshot_id}] 可展示的玩家详情数据。"
+    game_id = str(body.get("昵称") or snapshot_id)
+    logger.info(f"[GTAOnline · 快照玩家详情] 生成快照 [{snapshot_id}] 的详情卡片")
+
+    try:
+        user_avatar_url = await get_core_user_avatar(user_id)
+        header = await _assemble_identity(game_id, body, user_avatar_url)
+        return await render_detail_card(header, tree), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照玩家详情] 渲染快照 [{snapshot_id}] 详情卡片异常: {e}")
+        return None, "渲染详情图片失败，请稍后重试。"
+
+
+async def render_snapshot_finance_service(
+    bot_id: str,
+    user_id: str,
+    snapshot_id: str,
+) -> Tuple[Optional[bytes], str]:
+    """按快照ID生成收支差卡片。
+
+    Returns:
+        Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
+    """
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+    game_id = str(body.get("昵称") or snapshot_id)
+    logger.info(f"[GTAOnline · 快照收支差] 生成快照 [{snapshot_id}] 的收支差卡片")
+
+    try:
+        user_avatar_url = await get_core_user_avatar(user_id)
+        header = await _assemble_identity(game_id, body, user_avatar_url)
+        finance = _assemble_finance_items(body)
+        ring = _build_ring_items(body, header, finance)
+        data = {
+            **header,
+            "income_items": finance["income_items"],
+            "income_total": finance["income_total"],
+            "expense_items": finance["expense_items"],
+            "expense_total": finance["expense_total"],
+            "ring_income_items": ring["income_items"],
+            "ring_income_total": ring["income_total"],
+            "ring_expense_items": ring["expense_items"],
+            "ring_expense_total": ring["expense_total"],
+        }
+        return await render_finance_detail_card(data), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照收支差] 渲染快照 [{snapshot_id}] 收支差卡片异常: {e}")
+        return None, "渲染收支差图片失败，请稍后重试。"
