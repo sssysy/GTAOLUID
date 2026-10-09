@@ -56,6 +56,14 @@
         "need_admin": false
       },
       {
+        "name": "快照列表",
+        "desc": "查看玩家已有的快照记录列表",
+        "eg": "快照列表",
+        "need_ck": false,
+        "need_sk": false,
+        "need_admin": false
+      },
+      {
         "name": "刷新数据",
         "desc": "重新拉取主账号的最新数据",
         "eg": "刷新数据",

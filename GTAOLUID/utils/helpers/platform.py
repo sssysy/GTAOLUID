@@ -44,6 +44,18 @@ def get_platform_api(code: str) -> str:
     return PLATFORM_DEFINITIONS.get(code, PLATFORM_DEFINITIONS[DEFAULT_PLATFORM_CODE])["api"]
 
 
+_API_TO_CODE: Dict[str, str] = {info["api"]: code for code, info in PLATFORM_DEFINITIONS.items()}
+
+
+def get_platform_name_by_api(api_code: str) -> str:
+    """按接口平台标识取展示名称；未收录的标识原样返回。"""
+    raw = (api_code or "").strip()
+    code = _API_TO_CODE.get(raw.lower())
+    if code is None:
+        return raw
+    return PLATFORM_DEFINITIONS[code]["name"]
+
+
 def format_platform_guide() -> str:
     """生成平台代码引导列表提示文本。"""
     lines = [f"{code}：{info['name']}" for code, info in PLATFORM_DEFINITIONS.items()]

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>GTAOL 快照列表</title>
+<style>
+  @font-face {
+    font-family: 'youyuan';
+    src: url('{{ font_uri }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  {{ css_content|safe }}
+  .card {
+    width: 400px;
+    background-image:
+      linear-gradient(rgba(10, 13, 19, 0.55), rgba(10, 13, 19, 0.60)),
+      url('{{ bg_uri }}');
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="capture-card">
+
+  <!-- 1. 用户身份模块 -->
+  <div class="mod-header">
+    <div class="user-left">
+      <img class="avatar" src="{{ user_avatar_src }}" alt="Avatar">
+      <div class="user-details">
+        <div class="user-name">{{ user_name }}</div>
+        <div class="user-sub"><span>{{ user_id }}</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <img class="plugin-icon" src="{{ icon_uri }}" alt="Icon">
+    </div>
+  </div>
+
+  <!-- 2. 操作提示 -->
+  <div class="tip-bar">· 可在数据查询类命令附带对应快照ID查询对应快照信息 ·</div>
+
+  <!-- 3. 快照记录列表 -->
+  <div class="snapshots-container">
+    {% for item in snapshots %}
+    <div class="snapshot-card">
+      <div class="snapshot-top">
+        <span class="snapshot-id"># {{ item.index }}</span>
+        <span class="snapshot-platform">{{ item.platform_name }}</span>
+      </div>
+      <div class="snapshot-bottom">
+        <span class="snapshot-time">{{ item.time }}</span>
+        {% if item.state_text %}<span class="snapshot-dot">·</span>
+        <span class="snapshot-state state-{{ item.state_cls }}">{{ item.state_text }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 4. 底部注脚 -->
+  <div class="card-footer">
+    Create by <span class="footer-hl">GsCore</span> &amp; Power by <span class="footer-hl">GTAOLUID</span>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -7,14 +7,20 @@ from pathlib import Path
 from gsuid_core.logger import logger
 
 from ..utils.downloader import download
+from ..utils.helpers.api import get_status
 from ..utils.database.models import GTAUser
-from ..utils.utils.user_avatar import get_core_user_avatar
+from ..utils.helpers.platform import get_platform_name_by_api
+from ..utils.utils.user_avatar import get_core_user_name, get_core_user_avatar
 from ..utils.render.HTML.render import (
     render_detail_card,
     render_summary_card,
+    render_snapshot_list_card,
     render_finance_detail_card,
 )
 from ..utils.helpers.player_data import get_latest_player_snapshot
+
+# gta快照列表固定只取接口最近 10 条记录
+_SNAPSHOT_LIST_LIMIT = 10
 
 # 接口自带的元数据/审核字段，详情不展示
 _META_KEYS = {
@@ -625,3 +631,75 @@ async def render_finance_detail_service(
     except Exception as e:
         logger.exception(f"[GTAOnline · 收支差] 渲染收支差卡片异常: {e}")
         return None, "渲染收支差图片失败，请稍后重试。"
+
+
+def _parse_record_state(record: Dict[str, Any]) -> Tuple[str, str]:
+    """快照记录状态展示文本与配色类：可用绿、无权限红，其余原样回退默认色。"""
+    code = str(record.get("代号") or "").strip()
+    status = str(record.get("状态") or "").strip()
+    if code == "200" or status == "可用":
+        return "可用", "ok"
+    if code == "202" or status == "未开放数据权限":
+        return "无权限", "deny"
+    return status, ""
+
+
+def _assemble_snapshot_items(records: Any) -> List[Dict[str, Any]]:
+    """把接口数据记录转为渲染条目，缺失或异常字段严格回退为空串。"""
+    if not isinstance(records, list):
+        return []
+    items: List[Dict[str, Any]] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        state_text, state_cls = _parse_record_state(record)
+        items.append(
+            {
+                "index": str(record.get("索引") or ""),
+                "time": str(record.get("时间") or ""),
+                "platform_name": get_platform_name_by_api(str(record.get("平台") or "")),
+                "state_text": state_text,
+                "state_cls": state_cls,
+            }
+        )
+    return items
+
+
+async def render_snapshot_list_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[bytes], str]:
+    """生成玩家在 HQSHI 已有快照记录列表图片。
+
+    Returns:
+        Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
+    """
+    game_id = target_game_id.strip() if target_game_id and target_game_id.strip() else None
+    if not game_id:
+        main_acc = await GTAUser.get_main_account(user_id=user_id, bot_id=bot_id)
+        if main_acc is None:
+            return None, "您尚未绑定GTAOL账户，请先使用 gta绑定 <游戏ID> 进行绑定。"
+        game_id = main_acc.game_id
+
+    # 快照列表随用随取，不落盘；接口异常交由命令层统一提示
+    body = await get_status(game_id, limit=_SNAPSHOT_LIST_LIMIT)
+    snapshots = _assemble_snapshot_items(body.get("数据记录"))
+    if not snapshots:
+        return None, f"未查询到 [{game_id}] 的快照记录，请稍后重试。"
+
+    logger.info(f"[GTAOnline · 快照列表] 为 {game_id} 生成快照列表，共 {len(snapshots)} 条")
+    try:
+        user_name = await get_core_user_name(user_id)
+        user_avatar_src = await _load_avatar_src(await get_core_user_avatar(user_id))
+        data: Dict[str, Any] = {
+            "user_name": user_name,
+            "user_id": user_id,
+            "user_avatar_src": user_avatar_src,
+            "snapshots": snapshots,
+        }
+        img_bytes = await render_snapshot_list_card(data)
+        return img_bytes, "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照列表] 渲染快照列表异常: {e}")
+        return None, "生成快照列表图片失败，请稍后重试。"

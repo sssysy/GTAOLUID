@@ -516,6 +516,35 @@ async def render_bind_list_card(data: Dict[str, Any]) -> bytes:
     )
 
 
+async def render_snapshot_list_card(data: Dict[str, Any]) -> bytes:
+    """用户快照记录列表卡片渲染入口。
+
+    Args:
+        data: 业务层组装的用户身份与快照记录列表数据。
+
+    Returns:
+        渲染产出的 JPEG 字节。
+    """
+    css_content = _read_style("header.css", "snapshot_list.css")
+    context = {
+        **data,
+        "font_uri": get_font_url(),
+        "bg_uri": get_bg_url(),
+        "icon_uri": get_icon_url(),
+        "css_content": css_content,
+    }
+
+    template = _ENV.get_template("snapshot_list.html")
+    html_content = template.render(**context)
+
+    return await render_html(
+        html_content=html_content,
+        selector="#capture-card",
+        viewport_width=440,
+        viewport_height=1400,
+    )
+
+
 async def render_jobs_list_card(data: Dict[str, Any]) -> bytes:
     """差事推荐列表卡片渲染入口。
 
