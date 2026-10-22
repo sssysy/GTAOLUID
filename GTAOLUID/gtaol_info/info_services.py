@@ -280,7 +280,7 @@ def _build_ring_items(
 ) -> Dict[str, Any]:
     """在基础分类上并入对齐用派生项，返回供环形图使用的一套分类与总额。
 
-    「收支差距」并入收入环、「当前结余」并入支出环，使两个环的总额相互对齐。
+    [收支差距] 并入收入环、[当前结余] 并入支出环，使两个环的总额相互对齐。
     """
     income_items = list(finance["income_items"])
     expense_items = list(finance["expense_items"])
@@ -512,6 +512,87 @@ async def _assemble_overview_data(
     }
 
 
+def _items_to_mapping(
+    items: List[Dict[str, Any]],
+    name_key: str,
+    value_key: str,
+) -> Dict[str, Any]:
+    """把渲染用条目压缩为名称到值的映射，供 AI 工具读取。"""
+    result: Dict[str, Any] = {}
+    for item in items:
+        name = item.get(name_key)
+        if name is None:
+            continue
+        result[str(name)] = item.get(value_key)
+    return result
+
+
+def _optional_text(value: Any) -> Optional[str]:
+    """把空值和历史占位字符串统一转为 None。"""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if not text or text == "None" else text
+
+
+def _overview_ai_payload(
+    game_id: str,
+    source: str,
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """提取总览中的非展示字段，避免头像和配色进入 AI 上下文。"""
+    return {
+        "game_id": game_id,
+        "source": source,
+        "nickname": data["nickname"],
+        "rank": data["rank"],
+        "platform": _optional_text(data["platform_name"]),
+        "rockstar_id": _optional_text(data["rid"]),
+        "crew_tag": _optional_text(data["crew_tag"]),
+        "time_played": data["time_played"],
+        "cash": data["cash_num"],
+        "bank": data["bank_num"],
+        "balance": data["cash_num"] + data["bank_num"],
+        "income_total": data["income_total"],
+        "expense_total": data["expense_total"],
+        "income_items": _items_to_mapping(data["income_items"], "name", "value"),
+        "expense_items": _items_to_mapping(data["expense_items"], "name", "value"),
+        "skills": _items_to_mapping(data["skills"], "name", "value"),
+        "combat": _items_to_mapping(data["combat_items"], "label", "val"),
+        "favorite_weapon": {
+            **data["favorite_weapon"],
+            "name": _optional_text(data["favorite_weapon"]["name"]),
+        },
+        "vehicles": _items_to_mapping(data["vehicle_items"], "label", "val"),
+        "wanted": _items_to_mapping(data["wanted_items"], "label", "val"),
+        "competition": _items_to_mapping(data["comp_items"], "label", "val"),
+        "medals": data["medals_summary"],
+    }
+
+
+def _finance_ai_payload(
+    game_id: str,
+    source: str,
+    identity: Dict[str, Any],
+    finance: Dict[str, Any],
+    income_gap: float,
+) -> Dict[str, Any]:
+    """提取收支问询所需字段，保留接口原始总额与分类明细。"""
+    return {
+        "game_id": game_id,
+        "source": source,
+        "nickname": identity["nickname"],
+        "cash": identity["cash_num"],
+        "bank": identity["bank_num"],
+        "balance": identity["cash_num"] + identity["bank_num"],
+        "income_total": finance["income_total"],
+        "expense_total": finance["expense_total"],
+        "income_gap": income_gap,
+        "income_items": _items_to_mapping(finance["income_items"], "name", "value"),
+        "expense_items": _items_to_mapping(finance["expense_items"], "name", "value"),
+    }
+
+
 async def _resolve_snapshot(
     bot_id: str,
     user_id: str,
@@ -529,6 +610,97 @@ async def _resolve_snapshot(
     if not local_res:
         return game_id, None, f"未找到 [{game_id}] 的本地数据，请先使用 gta刷新数据 拉取最新数据！"
     return game_id, local_res, "OK"
+
+
+async def get_overview_data_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """读取玩家总览数据并返回 AI 友好的结构化字典。"""
+    game_id, local_res, msg = await _resolve_snapshot(bot_id, user_id, target_game_id)
+    if local_res is None:
+        return None, msg
+
+    snapshot_file, raw_data = local_res
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到 [{game_id}] 可展示的玩家数据。"
+
+    try:
+        data = await _assemble_overview_data(game_id, raw_data, None)
+        return _overview_ai_payload(game_id, f"local_snapshot:{snapshot_file.name}", data), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 数据总览] 组装 {game_id} 的结构化数据异常: {e}")
+        return None, "运行出错，生成总览数据失败，请稍后重试。"
+
+
+async def get_detail_data_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """读取玩家详情数据并返回 AI 友好的结构化字典。"""
+    game_id, local_res, msg = await _resolve_snapshot(bot_id, user_id, target_game_id)
+    if local_res is None:
+        return None, msg
+
+    snapshot_file, raw_data = local_res
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到 [{game_id}] 可展示的玩家详情数据。"
+
+    tree = _build_detail_tree(body)
+    if not tree:
+        return None, f"未找到 [{game_id}] 可展示的玩家详情数据。"
+
+    try:
+        identity = await _assemble_identity(game_id, body, None)
+        return {
+            "game_id": game_id,
+            "source": f"local_snapshot:{snapshot_file.name}",
+            "nickname": identity["nickname"],
+            "rank": identity["rank"],
+            "platform": _optional_text(identity["platform_name"]),
+            "rockstar_id": _optional_text(identity["rid"]),
+            "cash": identity["cash_num"],
+            "bank": identity["bank_num"],
+            "details": tree,
+        }, "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 玩家详情] 组装 {game_id} 的结构化数据异常: {e}")
+        return None, "运行出错，生成玩家详情数据失败，请稍后重试。"
+
+
+async def get_finance_data_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """读取玩家收支数据并返回 AI 友好的结构化字典。"""
+    game_id, local_res, msg = await _resolve_snapshot(bot_id, user_id, target_game_id)
+    if local_res is None:
+        return None, msg
+
+    snapshot_file, raw_data = local_res
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到 [{game_id}] 可展示的收支数据。"
+
+    try:
+        identity = await _assemble_identity(game_id, body, None)
+        finance = _assemble_finance_items(body)
+        income_gap = _parse_money(body.get("收支差距", 0))
+        return _finance_ai_payload(
+            game_id,
+            f"local_snapshot:{snapshot_file.name}",
+            identity,
+            finance,
+            income_gap,
+        ), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 收支差] 组装 {game_id} 的结构化数据异常: {e}")
+        return None, "运行出错，生成收支数据失败，请稍后重试。"
 
 
 async def render_overview_service(
@@ -665,6 +837,26 @@ def _assemble_snapshot_items(records: Any) -> List[Dict[str, Any]]:
     return items
 
 
+async def get_snapshot_list_data_service(
+    bot_id: str,
+    user_id: str,
+    target_game_id: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """查询快照列表并返回 AI 友好的结构化字典。"""
+    game_id = target_game_id.strip() if target_game_id and target_game_id.strip() else None
+    if not game_id:
+        main_acc = await GTAUser.get_main_account(user_id=user_id, bot_id=bot_id)
+        if main_acc is None:
+            return None, "您尚未绑定GTAOL账户，请先使用 gta绑定 <游戏ID> 进行绑定。"
+        game_id = main_acc.game_id
+
+    body = await get_status(game_id, limit=_SNAPSHOT_LIST_LIMIT)
+    snapshots = _assemble_snapshot_items(body.get("数据记录"))
+    if not snapshots:
+        return None, f"未查询到 [{game_id}] 的快照记录，请稍后重试。"
+    return {"game_id": game_id, "snapshots": snapshots}, "OK"
+
+
 async def render_snapshot_list_service(
     bot_id: str,
     user_id: str,
@@ -675,18 +867,12 @@ async def render_snapshot_list_service(
     Returns:
         Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
     """
-    game_id = target_game_id.strip() if target_game_id and target_game_id.strip() else None
-    if not game_id:
-        main_acc = await GTAUser.get_main_account(user_id=user_id, bot_id=bot_id)
-        if main_acc is None:
-            return None, "您尚未绑定GTAOL账户，请先使用 gta绑定 <游戏ID> 进行绑定。"
-        game_id = main_acc.game_id
+    list_data, msg = await get_snapshot_list_data_service(bot_id, user_id, target_game_id)
+    if list_data is None:
+        return None, msg
 
-    # 快照列表随用随取，不落盘；接口异常交由命令层统一提示
-    body = await get_status(game_id, limit=_SNAPSHOT_LIST_LIMIT)
-    snapshots = _assemble_snapshot_items(body.get("数据记录"))
-    if not snapshots:
-        return None, f"未查询到 [{game_id}] 的快照记录，请稍后重试。"
+    game_id = str(list_data["game_id"])
+    snapshots = list_data["snapshots"]
 
     logger.info(f"[GTAOnline · 快照列表] 为 {game_id} 生成快照列表，共 {len(snapshots)} 条")
     try:
@@ -713,6 +899,76 @@ async def _load_snapshot_by_id(snapshot_id: str) -> Dict[str, Any]:
 
     logger.info(f"[GTAOnline · 快照数据] 本地无快照 [{snapshot_id}]，改为联网拉取")
     return await get_snapshot(snapshot_id)
+
+
+async def get_snapshot_overview_data_service(snapshot_id: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """按快照 ID 读取总览数据并返回 AI 友好的结构化字典。"""
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+
+    game_id = str(body.get("昵称") or snapshot_id)
+    try:
+        data = await _assemble_overview_data(game_id, raw_data, None)
+        return _overview_ai_payload(game_id, f"snapshot:{snapshot_id}", data), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照总览] 组装快照 [{snapshot_id}] 的结构化数据异常: {e}")
+        return None, "运行出错，生成快照总览数据失败，请稍后重试。"
+
+
+async def get_snapshot_detail_data_service(snapshot_id: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """按快照 ID 读取详情数据并返回 AI 友好的结构化字典。"""
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+
+    tree = _build_detail_tree(body)
+    if not tree:
+        return None, f"未找到快照 [{snapshot_id}] 可展示的玩家详情数据。"
+
+    game_id = str(body.get("昵称") or snapshot_id)
+    try:
+        identity = await _assemble_identity(game_id, body, None)
+        return {
+            "game_id": game_id,
+            "source": f"snapshot:{snapshot_id}",
+            "nickname": identity["nickname"],
+            "rank": identity["rank"],
+            "platform": _optional_text(identity["platform_name"]),
+            "rockstar_id": _optional_text(identity["rid"]),
+            "cash": identity["cash_num"],
+            "bank": identity["bank_num"],
+            "details": tree,
+        }, "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照玩家详情] 组装快照 [{snapshot_id}] 的结构化数据异常: {e}")
+        return None, "运行出错，生成快照玩家详情数据失败，请稍后重试。"
+
+
+async def get_snapshot_finance_data_service(snapshot_id: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """按快照 ID 读取收支数据并返回 AI 友好的结构化字典。"""
+    raw_data = await _load_snapshot_by_id(snapshot_id)
+    body = raw_data.get("body", raw_data)
+    if not isinstance(body, dict):
+        return None, f"未找到快照 [{snapshot_id}] 可展示的数据。"
+
+    game_id = str(body.get("昵称") or snapshot_id)
+    try:
+        identity = await _assemble_identity(game_id, body, None)
+        finance = _assemble_finance_items(body)
+        income_gap = _parse_money(body.get("收支差距", 0))
+        return _finance_ai_payload(
+            game_id,
+            f"snapshot:{snapshot_id}",
+            identity,
+            finance,
+            income_gap,
+        ), "OK"
+    except Exception as e:
+        logger.exception(f"[GTAOnline · 快照收支差] 组装快照 [{snapshot_id}] 的结构化数据异常: {e}")
+        return None, "运行出错，生成快照收支数据失败，请稍后重试。"
 
 
 async def render_snapshot_overview_service(

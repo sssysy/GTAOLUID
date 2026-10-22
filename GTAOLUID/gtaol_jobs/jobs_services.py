@@ -183,8 +183,11 @@ def _build_detail_rows(content: dict[str, Any]) -> list[dict[str, str]]:
     return [{"label": label, "value": str(value)} for label, value in rows if value]
 
 
-async def render_jobs_list_service(user_id: str, text: str) -> tuple[bytes | None, str]:
-    """渲染差事推荐列表；条件冲突、查询为空等预期失败返回提示文案。"""
+async def get_jobs_list_data_service(
+    user_id: str,
+    text: str,
+) -> tuple[dict[str, Any] | None, str]:
+    """查询差事推荐列表并返回 AI 友好的结构化数据。"""
     filters = parse_jobs_filter(text)
     if filters.conflicts:
         return None, "\n".join(filters.conflicts)
@@ -195,27 +198,63 @@ async def render_jobs_list_service(user_id: str, text: str) -> tuple[bytes | Non
 
     _JOB_INDEX_CACHE[user_id] = {index: job["id"] for index, job in enumerate(jobs, start=1)}
 
-    paths = await download([job["img"] for job in jobs], max_concurrency=8)
+    return {
+        "filter": {
+            "matched_labels": filters.matched_labels,
+            "date_range": filters.date_range,
+            "mission_type": filters.mission_type,
+            "subtype": filters.subtype,
+            "source": filters.source,
+            "sort": filters.sort,
+        },
+        "jobs": [
+            {
+                "index": index,
+                "id": job["id"],
+                "name": job["name"],
+                "author": job["author"],
+                "mode": job["mode"],
+                "played": job["played"],
+                "rate": job["rate"],
+                "image_url": job["img"],
+            }
+            for index, job in enumerate(jobs, start=1)
+        ],
+    }, ""
+
+
+async def render_jobs_list_service(user_id: str, text: str) -> tuple[bytes | None, str]:
+    """渲染差事推荐列表；条件冲突、查询为空等预期失败返回提示文案。"""
+    data, msg = await get_jobs_list_data_service(user_id, text)
+    if data is None:
+        return None, msg
+
+    jobs = data["jobs"]
+    paths = await download([job["image_url"] for job in jobs], max_concurrency=8)
     rows = [
         {
-            "index": index,
+            "index": job["index"],
             "id": job["id"],
             "name": job["name"],
             "author": job["author"],
             "mode": job["mode"],
             "played": job["played"],
             "rate": job["rate"],
-            "img_uri": image_path_to_data_uri(paths[index - 1]),
+            "img_uri": image_path_to_data_uri(paths[job["index"] - 1]),
         }
-        for index, job in enumerate(jobs, start=1)
+        for job in jobs
     ]
 
-    filter_line = f"筛选：{' · '.join(filters.matched_labels)}" if filters.matched_labels else ""
+    matched_labels = data["filter"]["matched_labels"]
+    filter_line = f"筛选：{' · '.join(matched_labels)}" if matched_labels else ""
     return await render_jobs_list_card({"jobs": rows, "filter_line": filter_line}), ""
 
 
-async def render_jobs_detail_service(user_id: str, text: str) -> tuple[bytes | None, str]:
-    """渲染差事详情卡；编号非法或缓存失效时返回提示文案。"""
+async def get_jobs_detail_data_service(
+    user_id: str,
+    text: str,
+) -> tuple[dict[str, Any] | None, str]:
+    """查询差事详情并返回 AI 友好的结构化数据。"""
     raw = (text or "").strip()
     if not raw.isdigit():
         return None, _DETAIL_USAGE
@@ -236,14 +275,35 @@ async def render_jobs_detail_service(user_id: str, text: str) -> tuple[bytes | N
     total = like + dislike
 
     payload = {
+        "id": content.get("id") or job_id,
         "name": content.get("name") or "",
         "desc": content.get("desc") or "",
-        "img_uri": await load_job_image_data_uri(content.get("imgSrc")),
         "author": author.get("nickname") or "",
-        "author_avatar": await load_avatar_data_uri(author.get("avatarUrl")),
         "like": like,
         "dislike": dislike,
         "rate": round(like / total * 100) if total > 0 else 0,
         "rows": _build_detail_rows(content),
+        "image_url": content.get("imgSrc"),
+        "author_avatar_url": author.get("avatarUrl"),
+    }
+    return payload, ""
+
+
+async def render_jobs_detail_service(user_id: str, text: str) -> tuple[bytes | None, str]:
+    """渲染差事详情卡；编号非法或缓存失效时返回提示文案。"""
+    data, msg = await get_jobs_detail_data_service(user_id, text)
+    if data is None:
+        return None, msg
+
+    payload = {
+        "name": data["name"],
+        "desc": data["desc"],
+        "img_uri": await load_job_image_data_uri(data["image_url"]),
+        "author": data["author"],
+        "author_avatar": await load_avatar_data_uri(data["author_avatar_url"]),
+        "like": data["like"],
+        "dislike": data["dislike"],
+        "rate": data["rate"],
+        "rows": data["rows"],
     }
     return await render_jobs_detail_card(payload), ""

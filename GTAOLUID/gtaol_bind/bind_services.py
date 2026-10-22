@@ -126,6 +126,33 @@ async def unbind_account_service(
     return f"已成功解绑账户 [{deleted_name}]！"
 
 
+async def get_bind_list_data_service(
+    bot_id: str,
+    user_id: str,
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """读取用户绑定账号并返回 AI 友好的结构化数据。
+
+    Returns:
+        Tuple[Optional[Dict[str, Any]], str]: (结构化绑定数据, 提示或错误消息)
+    """
+    accounts = await GTAUser.get_user_accounts(user_id=user_id, bot_id=bot_id)
+    if not accounts:
+        return None, "您当前暂无绑定的GTAOL账户，请先使用 gta绑定 <游戏ID> 进行绑定。"
+    return {
+        "user_id": user_id,
+        "accounts": [
+            {
+                "game_id": acc.game_id,
+                "rockstar_id": acc.rockstar_id or None,
+                "platform": acc.platform,
+                "is_main": acc.is_main,
+                "avatar_url": acc.avatar_url,
+            }
+            for acc in accounts
+        ],
+    }, "OK"
+
+
 async def render_bind_list_service(
     bot_id: str,
     user_id: str,
@@ -135,9 +162,11 @@ async def render_bind_list_service(
     Returns:
         Tuple[Optional[bytes], str]: (渲染图片字节流, 提示或错误消息)
     """
-    accounts = await GTAUser.get_user_accounts(user_id=user_id, bot_id=bot_id)
-    if not accounts:
-        return None, "您当前暂无绑定的GTAOL账户，请先使用 gta绑定 <游戏ID> 进行绑定。"
+    data, msg = await get_bind_list_data_service(bot_id, user_id)
+    if data is None:
+        return None, msg
+
+    accounts = data["accounts"]
 
     logger.info(f"[GTAOnline · 账户绑定] 为用户 {user_id} 生成绑定列表，共 {len(accounts)} 个账号")
     try:
@@ -146,11 +175,11 @@ async def render_bind_list_service(
         user_avatar_src = await load_avatar_data_uri(await get_core_user_avatar(user_id))
 
         # 2. 账号卡片只读绑定记录，头像取绑定/刷新时已存下的地址
-        avatar_srcs = await asyncio.gather(*[load_avatar_data_uri(acc.avatar_url) for acc in accounts])
+        avatar_srcs = await asyncio.gather(*[load_avatar_data_uri(acc["avatar_url"]) for acc in accounts])
         items: List[Dict[str, Any]] = [
             {
-                "name": acc.game_id,
-                "rid": acc.rockstar_id or "None",
+                "name": acc["game_id"],
+                "rid": acc["rockstar_id"] or "None",
                 "avatar_src": avatar_src,
             }
             for acc, avatar_src in zip(accounts, avatar_srcs)

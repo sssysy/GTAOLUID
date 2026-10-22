@@ -6,7 +6,11 @@ from gsuid_core.logger import logger
 from gsuid_core.models import Event
 from gsuid_core.segment import MessageSegment
 
-from .bind_services import bind_account_service, unbind_account_service, render_bind_list_service
+from .bind_services import (
+    bind_account_service,
+    unbind_account_service,
+    render_bind_list_service,
+)
 from ..utils.helpers.api import GTAOLApiError
 
 sv_gtaol_bind = SV("GTAOL账户绑定")
@@ -59,7 +63,17 @@ async def gtaol_unbind_account(bot: Bot, ev: Event) -> None:
         await bot.send("解绑过程出现异常，请稍后重试。")
 
 
-@sv_gtaol_bind.on_fullmatch("查看", block=True)
+@sv_gtaol_bind.on_fullmatch(
+    "查看",
+    block=True,
+    to_ai="""
+    生成当前用户 GTAOL 绑定账号列表卡片图片，仅在用户明确要求查看绑定列表卡片或图片时调用。
+
+    Args:
+        text: 固定传空字符串。
+    """,
+    covers=["GTAOL 当前用户已绑定账号列表卡片、游戏ID与 Rockstar ID"],
+)
 async def gtaol_view_accounts(bot: Bot, ev: Event) -> None:
     try:
         img_bytes, msg = await render_bind_list_service(bot_id=ev.bot_id, user_id=ev.user_id)

@@ -20,7 +20,17 @@ from ..utils.helpers.api import GTAOLApiError
 sv_gtaol_info = SV("GTAOL玩家信息")
 
 
-@sv_gtaol_info.on_command("总览", block=True)
+@sv_gtaol_info.on_command(
+    "总览",
+    block=True,
+    to_ai="""
+    生成 GTAOL 玩家资产总览卡片图片，仅在用户明确要求查看总览卡片或图片时调用。
+
+    Args:
+        text: 目标游戏ID；查询当前用户主账号时传空字符串。
+    """,
+    covers=["GTAOL 玩家资产总览卡片、等级、现金、银行、技能、战斗、载具、通缉、竞技与奖章"],
+)
 async def gtaol_player_overview(bot: Bot, ev: Event) -> None:
     target_id = ev.text.strip() or None
     try:
@@ -38,7 +48,17 @@ async def gtaol_player_overview(bot: Bot, ev: Event) -> None:
         await bot.send("生成总览卡片失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_command("玩家详情", block=True)
+@sv_gtaol_info.on_command(
+    "玩家详情",
+    block=True,
+    to_ai="""
+    生成 GTAOL 玩家详细数据卡片图片，仅在用户明确要求查看详情卡片或图片时调用。
+
+    Args:
+        text: 目标游戏ID；查询当前用户主账号时传空字符串。
+    """,
+    covers=["GTAOL 玩家详细数据卡片与全量快照字段"],
+)
 async def gtaol_player_detail(bot: Bot, ev: Event) -> None:
     target_id = ev.text.strip() or None
     try:
@@ -56,7 +76,17 @@ async def gtaol_player_detail(bot: Bot, ev: Event) -> None:
         await bot.send("生成玩家详情卡片失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_command("收支差", block=True)
+@sv_gtaol_info.on_command(
+    "收支差",
+    block=True,
+    to_ai="""
+    生成 GTAOL 玩家收支差卡片图片，仅在用户明确要求查看收支卡片或图片时调用。
+
+    Args:
+        text: 目标游戏ID；查询当前用户主账号时传空字符串。
+    """,
+    covers=["GTAOL 玩家收入、支出、结余与收支差卡片"],
+)
 async def gtaol_player_finance(bot: Bot, ev: Event) -> None:
     target_id = ev.text.strip() or None
     try:
@@ -74,7 +104,17 @@ async def gtaol_player_finance(bot: Bot, ev: Event) -> None:
         await bot.send("生成收支差卡片失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_command("快照列表", block=True)
+@sv_gtaol_info.on_command(
+    "快照列表",
+    block=True,
+    to_ai="""
+    生成 GTAOL 玩家快照列表卡片图片，仅在用户明确要求查看快照列表卡片或图片时调用。
+
+    Args:
+        text: 目标游戏ID；查询当前用户主账号时传空字符串。
+    """,
+    covers=["GTAOL 历史快照列表、快照ID、时间、平台与可用状态"],
+)
 async def gtaol_snapshot_list(bot: Bot, ev: Event) -> None:
     target_id = ev.text.strip() or None
     try:
@@ -95,7 +135,17 @@ async def gtaol_snapshot_list(bot: Bot, ev: Event) -> None:
         await bot.send("运行出错，生成快照列表失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_prefix("快照总览", block=True)
+@sv_gtaol_info.on_prefix(
+    "快照总览",
+    block=True,
+    to_ai="""
+    按快照ID生成 GTAOL 玩家总览卡片图片，仅在用户明确要求查看指定快照的总览卡片或图片时调用。
+
+    Args:
+        text: 快照ID，例如 BSPE6L。
+    """,
+    covers=["GTAOL 指定快照ID的总览卡片"],
+)
 async def gtaol_snapshot_overview(bot: Bot, ev: Event) -> None:
     parts = ev.text.split()
     snapshot_id = parts[0] if parts else ""
@@ -120,7 +170,17 @@ async def gtaol_snapshot_overview(bot: Bot, ev: Event) -> None:
         await bot.send("运行出错，生成总览卡片失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_prefix("快照玩家详情", block=True)
+@sv_gtaol_info.on_prefix(
+    "快照玩家详情",
+    block=True,
+    to_ai="""
+    按快照ID生成 GTAOL 玩家详情卡片图片，仅在用户明确要求查看指定快照的详情卡片或图片时调用。
+
+    Args:
+        text: 快照ID，例如 BSPE6L。
+    """,
+    covers=["GTAOL 指定快照ID的玩家详情卡片"],
+)
 async def gtaol_snapshot_detail(bot: Bot, ev: Event) -> None:
     parts = ev.text.split()
     snapshot_id = parts[0] if parts else ""
@@ -145,7 +205,17 @@ async def gtaol_snapshot_detail(bot: Bot, ev: Event) -> None:
         await bot.send("运行出错，生成玩家详情卡片失败，请稍后重试。")
 
 
-@sv_gtaol_info.on_prefix("快照收支差", block=True)
+@sv_gtaol_info.on_prefix(
+    "快照收支差",
+    block=True,
+    to_ai="""
+    按快照ID生成 GTAOL 玩家收支差卡片图片，仅在用户明确要求查看指定快照的收支卡片或图片时调用。
+
+    Args:
+        text: 快照ID，例如 BSPE6L。
+    """,
+    covers=["GTAOL 指定快照ID的收入、支出、结余与收支差卡片"],
+)
 async def gtaol_snapshot_finance(bot: Bot, ev: Event) -> None:
     parts = ev.text.split()
     snapshot_id = parts[0] if parts else ""
