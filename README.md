@@ -26,6 +26,8 @@
 
 > **注意：该插件为 [早柚核心(gsuid_core)](https://github.com/Genshin-bots/gsuid_core) 的扩展，具体安装方式可参考上方安装文档**
 >
+> **如果已经是最新版本的 `gsuid_core`，可以直接对 bot 发送 `core安装插件GTAOLUID`，然后重启 Core 以应用安装**
+>
 > 🚧 项目快速迭代中，有漏洞可提issue或pr 🚧
 
 ## 丨命令列表
